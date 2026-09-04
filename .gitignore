@@ -1,0 +1,27 @@
+# Adobe After Effects projects and generated media
+*.aep
+*.aepx
+*.aet
+*.aetx
+*.avi
+*.mov
+*.mp4
+*.mxf
+*.wav
+*.mp3
+
+# Local inputs, presets, caches, and editor files
+character-presets.tsv
+*.autosave
+Adobe After Effects Auto-Save/
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
+*.tmp
+
+# Keep only deliberately reviewed public examples
+examples/*
+!examples/example.ass
+!examples/example.srt

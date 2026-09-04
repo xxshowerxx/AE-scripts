@@ -1,0 +1,14 @@
+1
+00:00:01,000 --> 00:00:04,000
+第一句示例文本
+First placeholder line
+
+2
+00:00:04,000 --> 00:00:07,000
+第二句示例文本
+Second placeholder line
+
+3
+00:00:07,000 --> 00:00:10,000
+第三句示例文本
+Third placeholder line

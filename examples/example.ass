@@ -1,0 +1,24 @@
+[Script Info]
+Title: Anonymous Multi-Singer Example
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: MAIN,Arial,64,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,2,10,10,10,1
+Style: SUB,Arial,42,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,2,10,10,10,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:01.00,0:00:04.00,MAIN,A,0,0,0,,A 唱第一句示例
+Dialogue: 0,0:00:01.00,0:00:04.00,SUB,A,0,0,0,,First placeholder line by A
+Dialogue: 0,0:00:04.00,0:00:07.00,MAIN,B,0,0,0,,B 接续第二句示例
+Dialogue: 0,0:00:04.00,0:00:07.00,SUB,B,0,0,0,,Second placeholder line by B
+Dialogue: 0,0:00:07.00,0:00:10.00,MAIN,A+B,0,0,0,,[A]前半句[B]后半句
+Dialogue: 0,0:00:07.00,0:00:10.00,SUB,A+B,0,0,0,,[A]First part [B]second part
+Dialogue: 0,0:00:10.00,0:00:13.00,MAIN,ALL,0,0,0,,全员示例占位句
+Dialogue: 0,0:00:10.00,0:00:13.00,SUB,ALL,0,0,0,,Placeholder chorus line
+Dialogue: 0,0:00:13.00,0:00:15.00,MAIN,NONE,0,0,0,,无人演唱状态示例
+Dialogue: 0,0:00:15.00,0:00:17.00,MAIN,A,0,0,0,LDG_GROUP=G1,同一行的前半段
+Dialogue: 0,0:00:17.00,0:00:19.00,MAIN,B,0,0,0,LDG_GROUP=G1,与后半段
