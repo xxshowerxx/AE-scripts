@@ -2,11 +2,11 @@
 #targetengine "SRTRollingLyricsImporter"
 
 /*
- * SRT 滚动歌词导入器 2.0.0-beta
- * 可停靠 ScriptUI 面板；无需第三方插件。
+ * 滚动字幕生成器 2.0.0 测试版
+ * 可停靠面板；无需第三方插件。
  */
 (function SRTRollingLyricsImporter(thisObj) {
-    var APP_NAME = "SRT 滚动歌词导入器";
+    var APP_NAME = "滚动字幕生成器";
     var VERSION = "2.0.0-beta";
     var CONFIG_SECTION = "SRTRollingLyricsImporter.DefaultConfig";
     var CONFIG_VERSION = "2";

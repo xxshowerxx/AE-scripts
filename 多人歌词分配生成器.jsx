@@ -2,12 +2,12 @@
 #targetengine "LyricsDistributionGenerator"
 
 /*
- * Lyrics Distribution Generator 3.4.0
- * A single-file Adobe After Effects ExtendScript tool.
- * Generated from a clean design; no external libraries or plug-ins required.
+ * 多人歌词分配生成器 3.4.0
+ * Adobe After Effects 单文件脚本工具。
+ * 无需外部程序库或第三方插件。
  */
 (function LyricsDistributionGenerator(thisObj) {
-    var APP_NAME = "Lyrics Distribution Generator";
+    var APP_NAME = "多人歌词分配生成器";
     var VERSION = "3.4.0";
     var PRESET_SECTION = "LyricsDistributionGenerator.CharacterPresets";
     var CONFIG_SECTION = "LyricsDistributionGenerator.DefaultConfig";
@@ -39,7 +39,7 @@
     var CONFIG_CHECK_KEYS=["showNames","nameShadowEnabled","inactiveTint","bannerEnabled","lyricFollowSinger","lyricStroke","lyricShadowEnabled","spectrumEnabled","spectrumMirror","spectrumAfterIntro","coverEnabled","introEnabled"];
     var CONFIG_DROP_KEYS=["layoutMode","multiColorMode","allColorMode","lyricAnimation","spectrumMode","spectrumSide","coverTitleMode"];
 
-    // ---------- Generic helpers ----------
+    // ---------- 通用辅助函数 ----------
     function trim(s) { return String(s === undefined || s === null ? "" : s).replace(/^\s+|\s+$/g, ""); }
     function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
     function num(text, fallback, lo, hi) {
@@ -151,7 +151,7 @@
         return File.openDialog(prompt, filter, false);
     }
 
-    // ---------- ASS parser ----------
+    // ---------- ASS 字幕解析 ----------
     function assTimeToSeconds(s) {
         var m = trim(s).match(/^(\d+):(\d{1,2}):(\d{1,2})(?:[\.,](\d+))?$/);
         if (!m) { return NaN; }
@@ -292,7 +292,7 @@
         return byId;
     }
 
-    // ---------- UI state ----------
+    // ---------- 界面状态 ----------
     function defaultCharacter(id, index) {
         var palette = ["#86AFFF","#80D8FF","#FF7070","#D58CFF","#FFD166","#62D6A8","#FF9F68","#A4B0BE"];
         return { id: id, displayName: id, secondaryName: "", imageFile: null, color: palette[index % palette.length], scale: 100, offsetX: 0, offsetY: 0 };
@@ -361,7 +361,7 @@
         } catch (e) { alert("读取 ASS 失败：\r" + e.toString(), APP_NAME); }
     }
 
-    // ---------- AE helpers ----------
+    // ---------- AE 辅助函数 ----------
     function ensureProject() { if (!app.project) { app.newProject(); } return app.project; }
     function importFootage(file, folder) {
         var item = app.project.importFile(new ImportOptions(file));
@@ -403,8 +403,8 @@
         var fx=layer.property("ADBE Effect Parade").addProperty("ADBE Color Control");fx.name=name;fx.property(1).setValue(value);return fx;
     }
     function createFontTemplate(comp,name,font,size) {
-        var layer=comp.layers.addText("Font Style Template");layer.name=name;
-        setTextLayer(layer,"Font Style Template",{font:font,size:size,color:[1,1,1]});
+        var layer=comp.layers.addText("字体样式模板");layer.name=name;
+        setTextLayer(layer,"字体样式模板",{font:font,size:size,color:[1,1,1]});
         layer.enabled=false;layer.shy=false;try{layer.guideLayer=true;}catch(e){}return layer;
     }
     function createMasterControls(comp,settings) {
@@ -570,7 +570,7 @@
     function setLayerOpacity(layer, value) { layer.property("ADBE Transform Group").property("ADBE Opacity").setValue(value); }
     function setLayerScale(layer, value) { layer.property("ADBE Transform Group").property("ADBE Scale").setValue([value,value]); }
 
-    // ---------- Layout and animation ----------
+    // ---------- 布局与动画 ----------
     function calculateLayout(count, centerX, centerY, charSize, gap, maxWidth) {
         var rows = count <= 5 ? 1 : 2, rowCounts = [], positions = [], r, i, n, width, x, y, scale = 1;
         if (rows === 1) { rowCounts = [count]; }
@@ -626,7 +626,7 @@
         setTemporalEase(op); setTemporalEase(sc); if (gp) { setTemporalEase(gp); } if(tp){setTemporalEase(tp);}
     }
 
-    // ---------- Settings and validation ----------
+    // ---------- 设置与检查 ----------
     function collectSettings() {
         saveCharacterEditor();
         var u=state.ui,bannerText=u.bannerText.text,bannerSize=num(u.bannerSize.text,42,1,500),bannerPadding=num(u.bannerHeight.text,10,0,500);
@@ -677,7 +677,7 @@
     function fileFromSavedPath(path){if(!trim(path)){return null;}var f=new File(path);return f.exists?f:null;}
     function restoreFromSelectedComp(){var comp,layer,prop,text,data,parsed,i,c,chars=[];try{comp=app.project&&app.project.activeItem;if(!(comp instanceof CompItem)){alert("请先在项目面板或时间线中选中一个由本脚本生成的主合成。",APP_NAME);return;}try{layer=comp.layer(AUTO+"PROJECT_DATA");}catch(e1){layer=null;}if(!layer){alert("选中的合成没有恢复数据。旧版本生成的合成需要重新生成一次后才能使用此功能。",APP_NAME);return;}prop=layer.property("ADBE Text Properties").property("ADBE Text Document");text=prop.value.text;data=JSON.parse(decodeURIComponent(text));parsed=parseASS(data.assText);state.ass=parsed;state.annotationCues=data.cues||assToAnnotation(parsed);state.annotationSelected=-1;for(i=0;i<(data.characters||[]).length;i++){c=data.characters[i];chars.push({id:c.id,displayName:c.displayName||c.id,secondaryName:c.secondaryName||"",color:c.color||"#FFFFFF",scale:num(c.scale,100),offsetX:num(c.offsetX,0),offsetY:num(c.offsetY,0),imageFile:fileFromSavedPath(c.imagePath)});}state.characters=chars;state.assFile=fileFromSavedPath(data.assPath);state.audioFile=fileFromSavedPath(data.audioPath);state.bgFile=fileFromSavedPath(data.bgPath);state.annotationFile=fileFromSavedPath(data.annotationPath);applyUIConfig(data.config||{});state.ui.assPath.text=state.assFile?state.assFile.fsName:"";state.ui.audioPath.text=state.audioFile?state.audioFile.fsName:"";state.ui.bgPath.text=state.bgFile?state.bgFile.fsName:"";state.ui.annotationPath.text=state.annotationFile?state.annotationFile.fsName:"已从合成恢复";refreshCharacterList(0);refreshStyleDrops();refreshAnnotationList(0);syncProjectRolesUI();alert("已从合成恢复字幕、角色、素材路径和生成配置。\r修改后点击“生成 AE 合成”即可生成新版本。",APP_NAME);}catch(e){alert("恢复合成数据失败：\r"+e.toString()+(e.line?"\r行号："+e.line:""),APP_NAME);}}
 
-    // ---------- Composition generator ----------
+    // ---------- 合成生成 ----------
     function createBackground(comp, folder, settings) {
         var layer;
         if (fileExists(state.bgFile)) {
@@ -813,7 +813,7 @@
     function generate() {
         var settings=collectSettings(), errors=validate(settings), i;
         if(errors.length){alert("生成前检查未通过：\r\r"+errors.join("\r\r"),APP_NAME);return;}
-        app.beginUndoGroup(APP_NAME+" Generate");
+        app.beginUndoGroup(APP_NAME+" 生成");
         try{
             ensureProject();
             var lastEnd=0; for(i=0;i<state.ass.events.length;i++){lastEnd=Math.max(lastEnd,state.ass.events[i].end);}
@@ -842,7 +842,7 @@
         finally{app.endUndoGroup();}
     }
 
-    // ---------- UI builder ----------
+    // ---------- 界面创建 ----------
     function buildUI(owner) {
         var win=(owner instanceof Panel)?owner:new Window("palette",APP_NAME+"  v"+VERSION,undefined,{resizeable:true});
         win.orientation="column"; win.alignChildren=["fill","fill"]; win.spacing=8; win.margins=10;
