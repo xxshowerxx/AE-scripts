@@ -2,13 +2,13 @@
 #targetengine "LyricsDistributionGenerator"
 
 /*
- * 多人歌词分配生成器 3.4.0
+ * 多人歌词分配生成器 3.4.1
  * Adobe After Effects 单文件脚本工具。
  * 无需外部程序库或第三方插件。
  */
 (function LyricsDistributionGenerator(thisObj) {
     var APP_NAME = "多人歌词分配生成器";
-    var VERSION = "3.4.0";
+    var VERSION = "3.4.1";
     var PRESET_SECTION = "LyricsDistributionGenerator.CharacterPresets";
     var CONFIG_SECTION = "LyricsDistributionGenerator.DefaultConfig";
     var CONFIG_VERSION = "6";
@@ -62,6 +62,63 @@
         var i;
         for (i = 0; i < arr.length; i++) { if (arr[i] === value) { return; } }
         arr.push(value);
+    }
+    // 旧版 AE 的 ExtendScript 可能没有内置 JSON，这里提供安全的兼容实现。
+    function jsonQuote(text) {
+        var s=String(text),out='"',i,c,code,hex;
+        for(i=0;i<s.length;i++){
+            c=s.charAt(i);code=s.charCodeAt(i);
+            if(c==='"'){out+='\\"';}else if(c==='\\'){out+='\\\\';}
+            else if(c==='\b'){out+='\\b';}else if(c==='\f'){out+='\\f';}
+            else if(c==='\n'){out+='\\n';}else if(c==='\r'){out+='\\r';}else if(c==='\t'){out+='\\t';}
+            else if(code<32){hex=code.toString(16);while(hex.length<4){hex='0'+hex;}out+='\\u'+hex;}
+            else{out+=c;}
+        }
+        return out+'"';
+    }
+    function jsonStringifyFallback(value) {
+        var type=typeof value,i,parts,key,item;
+        if(value===null){return "null";}
+        if(type==="string"){return jsonQuote(value);}
+        if(type==="number"){return isFinite(value)?String(value):"null";}
+        if(type==="boolean"){return value?"true":"false";}
+        if(value instanceof Array){parts=[];for(i=0;i<value.length;i++){item=jsonStringifyFallback(value[i]);parts.push(item===undefined?"null":item);}return "["+parts.join(",")+"]";}
+        if(type==="object"){parts=[];for(key in value){if(value.hasOwnProperty(key)){item=jsonStringifyFallback(value[key]);if(item!==undefined){parts.push(jsonQuote(key)+":"+item);}}}return "{"+parts.join(",")+"}";}
+        return undefined;
+    }
+    function jsonStringify(value) {
+        if(typeof JSON!=="undefined"&&JSON&&typeof JSON.stringify==="function"){return JSON.stringify(value);}
+        return jsonStringifyFallback(value);
+    }
+    function jsonParseFallback(text) {
+        var source=String(text),index=0,length=source.length;
+        function error(message){throw new Error("恢复数据格式无效（位置 "+index+"）："+message);}
+        function skip(){while(index<length&&/\s/.test(source.charAt(index))){index++;}}
+        function parseString(){
+            var out="",c,escape,hex;
+            if(source.charAt(index)!=='"'){error("缺少字符串开头");}index++;
+            while(index<length){
+                c=source.charAt(index++);
+                if(c==='"'){return out;}
+                if(c==='\\'){
+                    if(index>=length){error("转义字符不完整");}escape=source.charAt(index++);
+                    if(escape==='"'||escape==='\\'||escape==='/'){out+=escape;}
+                    else if(escape==='b'){out+='\b';}else if(escape==='f'){out+='\f';}else if(escape==='n'){out+='\n';}else if(escape==='r'){out+='\r';}else if(escape==='t'){out+='\t';}
+                    else if(escape==='u'){hex=source.substr(index,4);if(!/^[0-9a-fA-F]{4}$/.test(hex)){error("Unicode 转义无效");}out+=String.fromCharCode(parseInt(hex,16));index+=4;}
+                    else{error("未知转义字符");}
+                }else{if(c.charCodeAt(0)<32){error("字符串含控制字符");}out+=c;}
+            }
+            error("字符串没有结束");
+        }
+        function parseNumber(){var match=source.substring(index).match(/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+\-]?\d+)?/),value;if(!match){error("数字无效");}index+=match[0].length;value=Number(match[0]);if(!isFinite(value)){error("数字超出范围");}return value;}
+        function parseArray(){var out=[];index++;skip();if(source.charAt(index)===']'){index++;return out;}while(index<length){out.push(parseValue());skip();if(source.charAt(index)===']'){index++;return out;}if(source.charAt(index)!==','){error("数组缺少逗号");}index++;skip();}error("数组没有结束");}
+        function parseObject(){var out={},key;index++;skip();if(source.charAt(index)==='}'){index++;return out;}while(index<length){key=parseString();skip();if(source.charAt(index)!==':'){error("对象缺少冒号");}index++;out[key]=parseValue();skip();if(source.charAt(index)==='}'){index++;return out;}if(source.charAt(index)!==','){error("对象缺少逗号");}index++;skip();}error("对象没有结束");}
+        function parseValue(){skip();var c=source.charAt(index);if(c==='"'){return parseString();}if(c==='{'){return parseObject();}if(c==='['){return parseArray();}if(source.substr(index,4)==="true"){index+=4;return true;}if(source.substr(index,5)==="false"){index+=5;return false;}if(source.substr(index,4)==="null"){index+=4;return null;}if(c==='-'||/\d/.test(c)){return parseNumber();}error("无法识别的内容");}
+        var result=parseValue();skip();if(index!==length){error("末尾有多余内容");}return result;
+    }
+    function jsonParse(text) {
+        if(typeof JSON!=="undefined"&&JSON&&typeof JSON.parse==="function"){return JSON.parse(text);}
+        return jsonParseFallback(text);
     }
     function parseHexColor(text, fallback) {
         var s = trim(text).replace(/^#/, "");
@@ -673,9 +730,9 @@
     }
 
     function snapshotCharacters(){var out=[],i,c;for(i=0;i<state.characters.length;i++){c=state.characters[i];out.push({id:c.id,displayName:c.displayName,secondaryName:c.secondaryName||"",color:c.color,scale:c.scale,offsetX:c.offsetX,offsetY:c.offsetY,imagePath:c.imageFile?c.imageFile.fsName:""});}return out;}
-    function writeProjectMetadata(comp){var data={version:VERSION,assText:assFromAnnotation(state.ass),cues:state.annotationCues,characters:snapshotCharacters(),config:snapshotUIConfig(),assPath:state.assFile?state.assFile.fsName:"",audioPath:state.audioFile?state.audioFile.fsName:"",bgPath:state.bgFile?state.bgFile.fsName:"",annotationPath:state.annotationFile?state.annotationFile.fsName:""},encoded,layer,prop,doc;try{encoded=encodeURIComponent(JSON.stringify(data));layer=comp.layers.addText(encoded);layer.name=AUTO+"PROJECT_DATA";prop=layer.property("ADBE Text Properties").property("ADBE Text Document");doc=prop.value;doc.text=encoded;prop.setValue(doc);layer.enabled=false;layer.shy=true;try{layer.guideLayer=true;}catch(e1){}}catch(e){throw new Error("无法写入项目恢复数据："+e.toString());}}
+    function writeProjectMetadata(comp){var data={version:VERSION,assText:assFromAnnotation(state.ass),cues:state.annotationCues,characters:snapshotCharacters(),config:snapshotUIConfig(),assPath:state.assFile?state.assFile.fsName:"",audioPath:state.audioFile?state.audioFile.fsName:"",bgPath:state.bgFile?state.bgFile.fsName:"",annotationPath:state.annotationFile?state.annotationFile.fsName:""},encoded,layer,prop,doc;try{encoded=encodeURIComponent(jsonStringify(data));layer=comp.layers.addText(encoded);layer.name=AUTO+"PROJECT_DATA";prop=layer.property("ADBE Text Properties").property("ADBE Text Document");doc=prop.value;doc.text=encoded;prop.setValue(doc);layer.enabled=false;layer.shy=true;try{layer.guideLayer=true;}catch(e1){}}catch(e){throw new Error("无法写入项目恢复数据："+e.toString());}}
     function fileFromSavedPath(path){if(!trim(path)){return null;}var f=new File(path);return f.exists?f:null;}
-    function restoreFromSelectedComp(){var comp,layer,prop,text,data,parsed,i,c,chars=[];try{comp=app.project&&app.project.activeItem;if(!(comp instanceof CompItem)){alert("请先在项目面板或时间线中选中一个由本脚本生成的主合成。",APP_NAME);return;}try{layer=comp.layer(AUTO+"PROJECT_DATA");}catch(e1){layer=null;}if(!layer){alert("选中的合成没有恢复数据。旧版本生成的合成需要重新生成一次后才能使用此功能。",APP_NAME);return;}prop=layer.property("ADBE Text Properties").property("ADBE Text Document");text=prop.value.text;data=JSON.parse(decodeURIComponent(text));parsed=parseASS(data.assText);state.ass=parsed;state.annotationCues=data.cues||assToAnnotation(parsed);state.annotationSelected=-1;for(i=0;i<(data.characters||[]).length;i++){c=data.characters[i];chars.push({id:c.id,displayName:c.displayName||c.id,secondaryName:c.secondaryName||"",color:c.color||"#FFFFFF",scale:num(c.scale,100),offsetX:num(c.offsetX,0),offsetY:num(c.offsetY,0),imageFile:fileFromSavedPath(c.imagePath)});}state.characters=chars;state.assFile=fileFromSavedPath(data.assPath);state.audioFile=fileFromSavedPath(data.audioPath);state.bgFile=fileFromSavedPath(data.bgPath);state.annotationFile=fileFromSavedPath(data.annotationPath);applyUIConfig(data.config||{});state.ui.assPath.text=state.assFile?state.assFile.fsName:"";state.ui.audioPath.text=state.audioFile?state.audioFile.fsName:"";state.ui.bgPath.text=state.bgFile?state.bgFile.fsName:"";state.ui.annotationPath.text=state.annotationFile?state.annotationFile.fsName:"已从合成恢复";refreshCharacterList(0);refreshStyleDrops();refreshAnnotationList(0);syncProjectRolesUI();alert("已从合成恢复字幕、角色、素材路径和生成配置。\r修改后点击“生成 AE 合成”即可生成新版本。",APP_NAME);}catch(e){alert("恢复合成数据失败：\r"+e.toString()+(e.line?"\r行号："+e.line:""),APP_NAME);}}
+    function restoreFromSelectedComp(){var comp,layer,prop,text,data,parsed,i,c,chars=[];try{comp=app.project&&app.project.activeItem;if(!(comp instanceof CompItem)){alert("请先在项目面板或时间线中选中一个由本脚本生成的主合成。",APP_NAME);return;}try{layer=comp.layer(AUTO+"PROJECT_DATA");}catch(e1){layer=null;}if(!layer){alert("选中的合成没有恢复数据。旧版本生成的合成需要重新生成一次后才能使用此功能。",APP_NAME);return;}prop=layer.property("ADBE Text Properties").property("ADBE Text Document");text=prop.value.text;data=jsonParse(decodeURIComponent(text));parsed=parseASS(data.assText);state.ass=parsed;state.annotationCues=data.cues||assToAnnotation(parsed);state.annotationSelected=-1;for(i=0;i<(data.characters||[]).length;i++){c=data.characters[i];chars.push({id:c.id,displayName:c.displayName||c.id,secondaryName:c.secondaryName||"",color:c.color||"#FFFFFF",scale:num(c.scale,100),offsetX:num(c.offsetX,0),offsetY:num(c.offsetY,0),imageFile:fileFromSavedPath(c.imagePath)});}state.characters=chars;state.assFile=fileFromSavedPath(data.assPath);state.audioFile=fileFromSavedPath(data.audioPath);state.bgFile=fileFromSavedPath(data.bgPath);state.annotationFile=fileFromSavedPath(data.annotationPath);applyUIConfig(data.config||{});state.ui.assPath.text=state.assFile?state.assFile.fsName:"";state.ui.audioPath.text=state.audioFile?state.audioFile.fsName:"";state.ui.bgPath.text=state.bgFile?state.bgFile.fsName:"";state.ui.annotationPath.text=state.annotationFile?state.annotationFile.fsName:"已从合成恢复";refreshCharacterList(0);refreshStyleDrops();refreshAnnotationList(0);syncProjectRolesUI();alert("已从合成恢复字幕、角色、素材路径和生成配置。\r修改后点击“生成 AE 合成”即可生成新版本。",APP_NAME);}catch(e){alert("恢复合成数据失败：\r"+e.toString()+(e.line?"\r行号："+e.line:""),APP_NAME);}}
 
     // ---------- 合成生成 ----------
     function createBackground(comp, folder, settings) {
@@ -721,21 +778,16 @@
         if (!settings.lyricFollowSinger || !ev.singers.length) { return fixedColor; }
         return singerColorForEvent(ev,fixedColor);
     }
-    function addGradientRamp(layer,colorA,colorB,time) {
+    function addVerticalGradientRamp(layer,colorTop,colorBottom,time) {
         var fx=layer.property("ADBE Effect Parade").addProperty("ADBE Ramp"),rect;
         try{rect=layer.sourceRectAtTime(time,false);}catch(e){rect={left:-500,top:-50,width:1000,height:100};}
-        try{fx.property(1).setValue([rect.left,rect.top+rect.height/2]);}catch(e1){}
-        try{fx.property(2).setValue(colorA);}catch(e2){}
-        try{fx.property(3).setValue([rect.left+rect.width,rect.top+rect.height/2]);}catch(e3){}
-        try{fx.property(4).setValue(colorB);}catch(e4){}
-        try{fx.property(1).expression='var r=thisLayer.sourceRectAtTime(time,false);[r.left,r.top+r.height/2];';fx.property(3).expression='var r=thisLayer.sourceRectAtTime(time,false);[r.left+r.width,r.top+r.height/2];';}catch(e5){}
-        return fx;
-    }
-    function addSoftVerticalReveal(layer,height) {
-        var fx=layer.property("ADBE Effect Parade").addProperty("ADBE Linear Wipe");
-        try{fx.property(1).setValue(50);}catch(e1){}
-        try{fx.property(2).setValue(0);}catch(e2){}
-        try{fx.property(3).setValue(Math.min(1000,Math.max(40,height)));}catch(e3){}
+        if(!fx){throw new Error("当前 AE 无法创建歌词渐变效果。");}
+        fx.name=AUTO+"Lyric_Vertical_Gradient";
+        try{fx.property(1).setValue([rect.left+rect.width/2,rect.top]);}catch(e1){}
+        try{fx.property(2).setValue(colorTop);}catch(e2){}
+        try{fx.property(3).setValue([rect.left+rect.width/2,rect.top+rect.height]);}catch(e3){}
+        try{fx.property(4).setValue(colorBottom);}catch(e4){}
+        try{fx.property(1).expression='var r=thisLayer.sourceRectAtTime(time,false);[r.left+r.width/2,r.top];';fx.property(3).expression='var r=thisLayer.sourceRectAtTime(time,false);[r.left+r.width/2,r.top+r.height];';}catch(e5){}
         return fx;
     }
     function validTaggedActor(actor){var parts=splitSingers(actor),i,j,found;if(!parts.length){return false;}for(i=0;i<parts.length;i++){if(parts[i].toUpperCase()==="ALL"||parts[i].toUpperCase()==="NONE"){continue;}found=false;for(j=0;j<state.characters.length;j++){if(state.characters[j].id===parts[i]){found=true;break;}}if(!found){return false;}}return true;}
@@ -749,7 +801,7 @@
         if (!style || style===NONE_STYLE_LABEL) { return; }
         var font=kind==="MAIN"?settings.mainFont:settings.subFont, size=kind==="MAIN"?settings.mainSize:settings.subSize;
         var minSize=kind==="MAIN"?settings.mainMinSize:settings.subMinSize, fixed=kind==="MAIN"?settings.mainColor:settings.subColor;
-        var displayEvents=buildLyricDisplayEvents(events,style),y=kind==="MAIN"?settings.mainY:settings.subY, i,ev,layer,textProp,count=0,color,theme,fitRatio,overlay,overlayProp,overlayDoc,rect,segments;
+        var displayEvents=buildLyricDisplayEvents(events,style),y=kind==="MAIN"?settings.mainY:settings.subY, i,ev,layer,textProp,count=0,color,theme,fitRatio,segments;
         for(i=0;i<displayEvents.length;i++){
             ev=displayEvents[i];if(!trim(ev.text)){continue;}count++;
             segments=ev._lyricSegments||parseLyricSegments(ev.text,ev.actor);if(segments.hasTags){createSegmentedLyric(comp,ev,kind,settings,font,size,minSize,fixed,y,count,segments);continue;}
@@ -761,11 +813,7 @@
             textProp=setTextLayer(layer,ev.text,{font:font,size:size,color:color,stroke:settings.lyricStroke,strokeColor:[0,0,0],strokeWidth:2});
             setLayerPosition(layer,[settings.lyricX,y]); autoFitText(layer,textProp,settings.maxLyricWidth,minSize);
             fitRatio=textProp.value.fontSize/size;
-            if(theme.colors.length>1){
-                overlay=layer.duplicate();overlay.name=layer.name+"_GRADIENT_B";overlayProp=overlay.property("ADBE Text Properties").property("ADBE Text Document");overlayDoc=overlayProp.value;overlayDoc.fillColor=themeColorAt(theme,1);overlayProp.setValue(overlayDoc);
-                try{rect=layer.sourceRectAtTime(ev.start,false);}catch(rectError){rect={height:size};}addSoftVerticalReveal(overlay,rect.height);
-                addFadeScaleAnimation(overlay,ev.start,Math.min(comp.duration,ev.end),settings.lyricAnimation,settings.lyricIn,settings.lyricOut);attachLyricMasterControls(overlay,overlayProp,kind,fitRatio);
-            }
+            if(theme.colors.length>1){addVerticalGradientRamp(layer,themeColorAt(theme,0),themeColorAt(theme,1),ev.start);}
             addUnifiedDropShadow(layer,"Lyric Shadow",settings.lyricShadowColor,settings.lyricShadowEnabled?settings.lyricShadowOpacity:0,settings.lyricShadowDirection,settings.lyricShadowDistance,settings.lyricShadowSoftness,"Lyric");
             addFadeScaleAnimation(layer,ev.start,Math.min(comp.duration,ev.end),settings.lyricAnimation,settings.lyricIn,settings.lyricOut);
             attachLyricMasterControls(layer,textProp,kind,fitRatio);

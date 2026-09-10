@@ -2,6 +2,13 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 的结构。当前仍处于 Beta 阶段。
 
+## [未发布]
+
+### 修复
+
+- 多人歌词分配生成器 3.4.1：兼容没有内置 `JSON` 对象的旧版 AE ExtendScript，修复生成和恢复 `AUTO_PROJECT_DATA` 时的报错。
+- 多人或全员歌词改为直接使用纵向渐变效果，修复上下颜色渐变不明显或不生效的问题。
+
 ## [0.9.0-beta] - 2026-09-04
 
 ### 新增
