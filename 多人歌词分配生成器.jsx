@@ -2,13 +2,13 @@
 #targetengine "LyricsDistributionGenerator"
 
 /*
- * 多人歌词分配生成器 3.4.2
+ * 多人歌词分配生成器 3.4.3
  * Adobe After Effects 单文件脚本工具。
  * 无需外部程序库或第三方插件。
  */
 (function LyricsDistributionGenerator(thisObj) {
     var APP_NAME = "多人歌词分配生成器";
-    var VERSION = "3.4.2";
+    var VERSION = "3.4.3";
     var PRESET_SECTION = "LyricsDistributionGenerator.CharacterPresets";
     var CONFIG_SECTION = "LyricsDistributionGenerator.DefaultConfig";
     var CONFIG_VERSION = "6";
@@ -785,15 +785,17 @@
         return singerColorForEvent(ev,fixedColor);
     }
     function addVerticalGradientRamp(layer,colorTop,colorBottom,time) {
-        var fx=layer.property("ADBE Effect Parade").addProperty("ADBE Ramp"),rect,anchor=[0,0],centerX,topY,bottomY;
+        var fx=layer.property("ADBE Effect Parade").addProperty("ADBE Ramp"),rect,anchor=[0,0],position=[0,0],scale=[100,100],centerX,topY,bottomY;
         try{rect=layer.sourceRectAtTime(time,false);}catch(e){rect={left:-500,top:-50,width:1000,height:100};}
         if(!fx){throw new Error("当前 AE 无法创建歌词渐变效果。");}
         colorTop=[colorTop[0],colorTop[1],colorTop[2],colorTop.length>3?colorTop[3]:1];
         colorBottom=[colorBottom[0],colorBottom[1],colorBottom[2],colorBottom.length>3?colorBottom[3]:1];
         try{anchor=layer.property("ADBE Transform Group").property("ADBE Anchor Point").value;}catch(e0){}
-        centerX=anchor[0]+rect.left+rect.width/2;
-        topY=anchor[1]+rect.top;
-        bottomY=topY+Math.max(1,rect.height);
+        try{position=layer.property("ADBE Transform Group").property("ADBE Position").value;}catch(e01){}
+        try{scale=layer.property("ADBE Transform Group").property("ADBE Scale").value;}catch(e02){}
+        centerX=position[0]+(rect.left+rect.width/2-anchor[0])*scale[0]/100;
+        topY=position[1]+(rect.top-anchor[1])*scale[1]/100;
+        bottomY=position[1]+(rect.top+Math.max(1,rect.height)-anchor[1])*scale[1]/100;
         fx.name=AUTO+"Lyric_Vertical_Gradient";
         try{fx.property(1).setValue([centerX,topY]);}catch(e1){}
         try{fx.property(2).setValue(colorTop);}catch(e2){}
@@ -802,7 +804,7 @@
         try{fx.property(5).setValue(1);}catch(e5){}
         try{fx.property(6).setValue(0);}catch(e6){}
         try{fx.property(7).setValue(0);}catch(e7){}
-        try{fx.property(1).expression='var r=thisLayer.sourceRectAtTime(time,false);var a=thisLayer.anchorPoint;[a[0]+r.left+r.width/2,a[1]+r.top];';fx.property(3).expression='var r=thisLayer.sourceRectAtTime(time,false);var a=thisLayer.anchorPoint;[a[0]+r.left+r.width/2,a[1]+r.top+Math.max(1,r.height)];';}catch(e8){}
+        try{fx.property(1).expression='var r=thisLayer.sourceRectAtTime(time,false);thisLayer.toComp([r.left+r.width/2,r.top]);';fx.property(3).expression='var r=thisLayer.sourceRectAtTime(time,false);thisLayer.toComp([r.left+r.width/2,r.top+Math.max(1,r.height)]);';}catch(e8){}
         return fx;
     }
     function validTaggedActor(actor){var parts=splitSingers(actor),i,j,found;if(!parts.length){return false;}for(i=0;i<parts.length;i++){if(parts[i].toUpperCase()==="ALL"||parts[i].toUpperCase()==="NONE"){continue;}found=false;for(j=0;j<state.characters.length;j++){if(state.characters[j].id===parts[i]){found=true;break;}}if(!found){return false;}}return true;}
