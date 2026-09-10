@@ -2,13 +2,13 @@
 #targetengine "LyricsDistributionGenerator"
 
 /*
- * 多人歌词分配生成器 3.4.3
+ * 多人歌词分配生成器 3.4.4
  * Adobe After Effects 单文件脚本工具。
  * 无需外部程序库或第三方插件。
  */
 (function LyricsDistributionGenerator(thisObj) {
     var APP_NAME = "多人歌词分配生成器";
-    var VERSION = "3.4.3";
+    var VERSION = "3.4.4";
     var PRESET_SECTION = "LyricsDistributionGenerator.CharacterPresets";
     var CONFIG_SECTION = "LyricsDistributionGenerator.DefaultConfig";
     var CONFIG_VERSION = "6";
@@ -872,7 +872,35 @@
     function fadeOutAt(layer,end){if(end<=0){return;}var op=layer.property("ADBE Transform Group").property("ADBE Opacity"),fade=Math.min(0.35,end);layer.inPoint=0;layer.outPoint=end;setKey(op,0,100);setKey(op,Math.max(0,end-fade),100);setKey(op,end,0);setTemporalEase(op);}
     function createTitleBlock(comp,folder,settings,end,prefix){var titleLayer=null,logoLayer=null,infoLayer=null,item,scale,prop,mode=settings.coverTitleMode||"文字标题",showLogo=mode!=="文字标题"&&settings.coverLogoFile&&settings.coverLogoFile.exists,showText=mode!=="Logo"||!showLogo,titleY=settings.coverTitleY;if(showLogo){item=importFootage(settings.coverLogoFile,folder);logoLayer=comp.layers.add(item);logoLayer.name=AUTO+prefix+"_LOGO";scale=Math.min(1,settings.coverLogoWidth/item.width)*100;logoLayer.property("ADBE Transform Group").property("ADBE Scale").setValue([scale,scale]);setLayerPosition(logoLayer,[settings.width/2,mode==="Logo + 文字"?titleY-60:titleY]);}if(showText&&trim(settings.songTitle)){titleLayer=comp.layers.addText(settings.songTitle);titleLayer.name=AUTO+prefix+"_TITLE";setTextLayer(titleLayer,settings.songTitle,{font:settings.songTitleFont,size:settings.songTitleSize,color:settings.songTitleColor});setLayerPosition(titleLayer,[settings.width/2,mode==="Logo + 文字"?titleY+100:titleY]);if(settings.songTitleGlow>0){addGlow(titleLayer,settings.songTitleColor,settings.songTitleGlow,settings.songTitleGlowRadius);}}if(trim(settings.coverInfo)){infoLayer=comp.layers.addText(settings.coverInfo);infoLayer.name=AUTO+prefix+"_INFO";prop=setTextLayer(infoLayer,settings.coverInfo,{font:settings.coverInfoFont,size:settings.coverInfoSize,color:settings.coverInfoColor});setLayerPosition(infoLayer,[settings.width/2,settings.coverInfoY]);autoFitText(infoLayer,prop,settings.maxLyricWidth,12);}if(end!==null){if(logoLayer){fadeOutAt(logoLayer,end);}if(titleLayer){fadeOutAt(titleLayer,end);}if(infoLayer){fadeOutAt(infoLayer,end);}}return{title:titleLayer,logo:logoLayer,info:infoLayer};}
     function coverTheme(settings){var ids=[],i;for(i=0;i<state.characters.length;i++){ids.push(state.characters[i].id);}return{colors:colorsForMode(settings.allColorMode,ids,settings.allColorA,settings.allColorB,settings.bannerColor),kind:"all"};}
-    function createCoverBanner(comp,settings){if(settings.layoutMode!=="顶部拼贴"||!settings.bannerEnabled){return;}var y=settings.portraitHeight+settings.bannerHeight/2,n=state.characters.length,theme=coverTheme(settings),spans=[],i,c0,c1,item;if(n<=1){spans.push([0,settings.width,0,1]);}else{c0=settings.width/(2*n);spans.push([0,c0,0,0]);for(i=0;i<n-1;i++){c0=settings.width*(i+0.5)/n;c1=settings.width*(i+1.5)/n;spans.push([c0,c1,i/(n-1),(i+1)/(n-1)]);}c0=settings.width*(n-0.5)/n;spans.push([c0,settings.width,1,1]);}for(i=0;i<spans.length;i++){item=createBannerSegment(comp,spans[i][0],spans[i][1],settings.bannerHeight,y,AUTO+"COVER_BANNER_SHADOW_"+pad(i+1,2),settings.bannerColor,Math.max(settings.bannerShadowOpacity,settings.bannerActiveShadowOpacity),Math.max(settings.bannerShadowSize,settings.bannerActiveShadowSize),settings.bannerBottomShadowSize);item.startColor.setValue(themeColorAt(theme,spans[i][2]));item.endColor.setValue(themeColorAt(theme,spans[i][3]));}for(i=0;i<spans.length;i++){item=createBannerSegment(comp,spans[i][0],spans[i][1],settings.bannerHeight,y,AUTO+"COVER_BANNER_BG_"+pad(i+1,2),settings.bannerColor,100,0);item.startColor.setValue(themeColorAt(theme,spans[i][2]));item.endColor.setValue(themeColorAt(theme,spans[i][3]));}if(trim(settings.bannerText)){var textLayer=comp.layers.addText(settings.bannerText);textLayer.name=AUTO+"COVER_BANNER_TEXT";setTextLayer(textLayer,settings.bannerText,{font:settings.bannerFont,size:settings.bannerSize,color:settings.bannerTextColor});setLayerPosition(textLayer,[settings.width/2,y]);}}
+    function createCoverBanner(comp,settings){
+        if(settings.layoutMode!=="顶部拼贴"||!settings.bannerEnabled){return;}
+        var y=settings.portraitHeight+settings.bannerHeight/2,n=state.characters.length,theme=coverTheme(settings),spans=[],i,c0,c1,item,cellW,left,right,sampleL,sampleR;
+        if(n<=1){spans.push([0,settings.width,0,1]);}
+        else{
+            c0=settings.width/(2*n);spans.push([0,c0,0,0]);
+            for(i=0;i<n-1;i++){c0=settings.width*(i+0.5)/n;c1=settings.width*(i+1.5)/n;spans.push([c0,c1,i/(n-1),(i+1)/(n-1)]);}
+            c0=settings.width*(n-0.5)/n;spans.push([c0,settings.width,1,1]);
+        }
+        if(settings.bannerActiveShadowOpacity>0&&settings.bannerActiveShadowSize>0&&n>0){
+            cellW=settings.width/n;
+            for(i=0;i<n;i++){
+                left=i*cellW;right=(i+1)*cellW;sampleL=n<=1?0:left/settings.width;sampleR=n<=1?1:right/settings.width;
+                item=createBannerSegment(comp,left,right,settings.bannerHeight,y,AUTO+"COVER_BANNER_ACTIVE_SHADOW_"+pad(i+1,2),settings.bannerColor,settings.bannerActiveShadowOpacity,settings.bannerActiveShadowSize,0);
+                item.startColor.setValue(themeColorAt(theme,sampleL));item.endColor.setValue(themeColorAt(theme,sampleR));
+            }
+        }
+        if(settings.bannerShadowOpacity>0&&(settings.bannerShadowSize>0||settings.bannerBottomShadowSize>0)){
+            for(i=0;i<spans.length;i++){
+                item=createBannerSegment(comp,spans[i][0],spans[i][1],settings.bannerHeight,y,AUTO+"COVER_BANNER_SHADOW_"+pad(i+1,2),settings.bannerColor,settings.bannerShadowOpacity,settings.bannerShadowSize,settings.bannerBottomShadowSize);
+                item.startColor.setValue(themeColorAt(theme,spans[i][2]));item.endColor.setValue(themeColorAt(theme,spans[i][3]));
+            }
+        }
+        for(i=0;i<spans.length;i++){
+            item=createBannerSegment(comp,spans[i][0],spans[i][1],settings.bannerHeight,y,AUTO+"COVER_BANNER_BG_"+pad(i+1,2),settings.bannerColor,100,0);
+            item.startColor.setValue(themeColorAt(theme,spans[i][2]));item.endColor.setValue(themeColorAt(theme,spans[i][3]));
+        }
+        if(trim(settings.bannerText)){var textLayer=comp.layers.addText(settings.bannerText);textLayer.name=AUTO+"COVER_BANNER_TEXT";setTextLayer(textLayer,settings.bannerText,{font:settings.bannerFont,size:settings.bannerSize,color:settings.bannerTextColor});setLayerPosition(textLayer,[settings.width/2,y]);}
+    }
     function copyObject(source){var out={},k;for(k in source){if(source.hasOwnProperty(k)){out[k]=source[k];}}return out;}
     function createCoverComposition(folder,settings){if(!settings.coverEnabled){return null;}var cover=app.project.items.addComp(settings.compName+"_Cover",settings.width,settings.height,1,settings.coverDuration,settings.fps);cover.parentFolder=folder;createBackground(cover,folder,settings);var cs=copyObject(settings);cs.showNames=true;var positions=cs.layoutMode==="顶部拼贴"?calculateTopStripLayout(state.characters.length,cs.width,cs.portraitHeight):calculateLayout(state.characters.length,cs.layoutX,cs.layoutY,cs.charSize,cs.charGap,cs.maxLayoutWidth),names=[],allInterval=[[0,settings.coverDuration]],i;for(i=0;i<state.characters.length;i++){createCharacter(cover,folder,state.characters[i],positions[i],allInterval,cs,settings.coverDuration,i,names);}createCoverBanner(cover,cs);for(i=0;i<names.length;i++){names[i].moveToBeginning();}createTitleBlock(cover,folder,settings,null,"COVER");return cover;}
     function generate() {
