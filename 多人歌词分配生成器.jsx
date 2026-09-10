@@ -2,13 +2,13 @@
 #targetengine "LyricsDistributionGenerator"
 
 /*
- * 多人歌词分配生成器 3.4.1
+ * 多人歌词分配生成器 3.4.2
  * Adobe After Effects 单文件脚本工具。
  * 无需外部程序库或第三方插件。
  */
 (function LyricsDistributionGenerator(thisObj) {
     var APP_NAME = "多人歌词分配生成器";
-    var VERSION = "3.4.1";
+    var VERSION = "3.4.2";
     var PRESET_SECTION = "LyricsDistributionGenerator.CharacterPresets";
     var CONFIG_SECTION = "LyricsDistributionGenerator.DefaultConfig";
     var CONFIG_VERSION = "6";
@@ -25,6 +25,7 @@
         ass: null,
         characters: [],
         selectedCharacter: -1,
+        refreshingCharacterList: false,
         annotationFile: null,
         annotationCues: [],
         annotationSelected: -1,
@@ -392,12 +393,17 @@
     }
     function refreshCharacterList(selectIndex) {
         var list = state.ui.charList, i;
-        list.removeAll();
-        for (i = 0; i < state.characters.length; i++) { list.add("item", (i+1) + ". " + state.characters[i].id); }
-        if (state.characters.length) {
-            selectIndex = clamp(selectIndex === undefined ? 0 : selectIndex, 0, state.characters.length - 1);
-            list.selection = selectIndex; loadCharacterEditor(selectIndex);
-        } else { loadCharacterEditor(-1); }
+        state.refreshingCharacterList = true;
+        try {
+            list.removeAll();
+            for (i = 0; i < state.characters.length; i++) { list.add("item", (i+1) + ". " + state.characters[i].id); }
+            if (state.characters.length) {
+                selectIndex = clamp(selectIndex === undefined ? 0 : selectIndex, 0, state.characters.length - 1);
+                list.selection = selectIndex; loadCharacterEditor(selectIndex);
+            } else { loadCharacterEditor(-1); }
+        } finally {
+            state.refreshingCharacterList = false;
+        }
     }
     function refreshStyleDrops() {
         var u = state.ui, styles = state.ass ? state.ass.styles : [], oldMain = selectedText(u.mainStyle), oldSub = selectedText(u.subStyle), i;
@@ -779,15 +785,24 @@
         return singerColorForEvent(ev,fixedColor);
     }
     function addVerticalGradientRamp(layer,colorTop,colorBottom,time) {
-        var fx=layer.property("ADBE Effect Parade").addProperty("ADBE Ramp"),rect;
+        var fx=layer.property("ADBE Effect Parade").addProperty("ADBE Ramp"),rect,anchor=[0,0],centerX,topY,bottomY;
         try{rect=layer.sourceRectAtTime(time,false);}catch(e){rect={left:-500,top:-50,width:1000,height:100};}
         if(!fx){throw new Error("当前 AE 无法创建歌词渐变效果。");}
+        colorTop=[colorTop[0],colorTop[1],colorTop[2],colorTop.length>3?colorTop[3]:1];
+        colorBottom=[colorBottom[0],colorBottom[1],colorBottom[2],colorBottom.length>3?colorBottom[3]:1];
+        try{anchor=layer.property("ADBE Transform Group").property("ADBE Anchor Point").value;}catch(e0){}
+        centerX=anchor[0]+rect.left+rect.width/2;
+        topY=anchor[1]+rect.top;
+        bottomY=topY+Math.max(1,rect.height);
         fx.name=AUTO+"Lyric_Vertical_Gradient";
-        try{fx.property(1).setValue([rect.left+rect.width/2,rect.top]);}catch(e1){}
+        try{fx.property(1).setValue([centerX,topY]);}catch(e1){}
         try{fx.property(2).setValue(colorTop);}catch(e2){}
-        try{fx.property(3).setValue([rect.left+rect.width/2,rect.top+rect.height]);}catch(e3){}
+        try{fx.property(3).setValue([centerX,bottomY]);}catch(e3){}
         try{fx.property(4).setValue(colorBottom);}catch(e4){}
-        try{fx.property(1).expression='var r=thisLayer.sourceRectAtTime(time,false);[r.left+r.width/2,r.top];';fx.property(3).expression='var r=thisLayer.sourceRectAtTime(time,false);[r.left+r.width/2,r.top+r.height];';}catch(e5){}
+        try{fx.property(5).setValue(1);}catch(e5){}
+        try{fx.property(6).setValue(0);}catch(e6){}
+        try{fx.property(7).setValue(0);}catch(e7){}
+        try{fx.property(1).expression='var r=thisLayer.sourceRectAtTime(time,false);var a=thisLayer.anchorPoint;[a[0]+r.left+r.width/2,a[1]+r.top];';fx.property(3).expression='var r=thisLayer.sourceRectAtTime(time,false);var a=thisLayer.anchorPoint;[a[0]+r.left+r.width/2,a[1]+r.top+Math.max(1,r.height)];';}catch(e8){}
         return fx;
     }
     function validTaggedActor(actor){var parts=splitSingers(actor),i,j,found;if(!parts.length){return false;}for(i=0;i<parts.length;i++){if(parts[i].toUpperCase()==="ALL"||parts[i].toUpperCase()==="NONE"){continue;}found=false;for(j=0;j<state.characters.length;j++){if(state.characters[j].id===parts[i]){found=true;break;}}if(!found){return false;}}return true;}
@@ -942,7 +957,7 @@
         var colG=editor.add("group");colG.add("statictext",undefined,"主题颜色").preferredSize.width=100;u.charColor=colG.add("edittext",undefined,"#FFFFFF");u.charColor.characters=10;var colBtn=colG.add("button",undefined,"选色");
         u.charScale=addLabeledEdit(editor,"图片缩放 %","100",10);u.charX=addLabeledEdit(editor,"Offset X","0",10);u.charY=addLabeledEdit(editor,"Offset Y","0",10);
         editor.add("statictext",undefined,"顶部拼贴使用 Fill 裁切，Scale/Offset 调整取景；卡片横排使用 Fit。",{multiline:true}).preferredSize.width=400;
-        u.charList.onChange=function(){saveCharacterEditor();if(u.charList.selection){loadCharacterEditor(u.charList.selection.index);}};
+        u.charList.onChange=function(){if(state.refreshingCharacterList){return;}saveCharacterEditor();if(u.charList.selection){loadCharacterEditor(u.charList.selection.index);}};
         imgBtn.onClick=function(){if(state.selectedCharacter<0){return;}var f=browseFile("选择角色图片","Image:*.png;*.jpg;*.jpeg;*.tif;*.tiff;*.psd");if(f){state.characters[state.selectedCharacter].imageFile=f;u.charImage.text=f.fsName;}};
         colBtn.onClick=function(){chooseColor(u.charColor);};
         up.onClick=function(){saveCharacterEditor();var i=state.selectedCharacter;if(i>0){var t=state.characters[i-1];state.characters[i-1]=state.characters[i];state.characters[i]=t;refreshCharacterList(i-1);syncProjectRolesUI();}};
