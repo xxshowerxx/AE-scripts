@@ -2,13 +2,13 @@
 #targetengine "LyricsDistributionGenerator"
 
 /*
- * 多人歌词分配生成器 3.4.4
+ * 多人歌词分配生成器 3.4.5
  * Adobe After Effects 单文件脚本工具。
  * 无需外部程序库或第三方插件。
  */
 (function LyricsDistributionGenerator(thisObj) {
     var APP_NAME = "多人歌词分配生成器";
-    var VERSION = "3.4.4";
+    var VERSION = "3.4.5";
     var PRESET_SECTION = "LyricsDistributionGenerator.CharacterPresets";
     var CONFIG_SECTION = "LyricsDistributionGenerator.DefaultConfig";
     var CONFIG_VERSION = "6";
@@ -444,6 +444,14 @@
         prop.setValue(doc);
         return prop;
     }
+    function centerTextLayerAt(layer,position,time) {
+        var rect,anchor=layer.property("ADBE Transform Group").property("ADBE Anchor Point");
+        try {
+            rect=layer.sourceRectAtTime(time||0,false);
+            anchor.setValue([rect.left+rect.width/2,rect.top+rect.height/2]);
+        } catch(e) {}
+        setLayerPosition(layer,position);
+    }
     function setTemporalEase(prop) {
         var i, easeIn = [new KeyframeEase(0, 66)], easeOut = [new KeyframeEase(0, 66)];
         try { for (i = 1; i <= prop.numKeys; i++) { prop.setTemporalEaseAtKey(i, easeIn, easeOut); } } catch (e) {}
@@ -861,7 +869,7 @@
         if(trim(settings.bannerText)){
             var textLayer=comp.layers.addText(settings.bannerText);textLayer.name=AUTO+"BANNER_TEXT";
             setTextLayer(textLayer,settings.bannerText,{font:settings.bannerFont,size:settings.bannerSize,color:settings.bannerTextColor});
-            setLayerPosition(textLayer,[settings.width/2,y]);
+            centerTextLayerAt(textLayer,[settings.width/2,y],0);
         }
     }
     function findCompInItem(root,name){var i,item,found;if(!root){return null;}if(root instanceof CompItem&&root.name===name){return root;}if(root instanceof FolderItem){for(i=1;i<=root.numItems;i++){item=root.item(i);if(item instanceof CompItem&&item.name===name){return item;}if(item instanceof FolderItem){found=findCompInItem(item,name);if(found){return found;}}}}return null;}
@@ -899,7 +907,7 @@
             item=createBannerSegment(comp,spans[i][0],spans[i][1],settings.bannerHeight,y,AUTO+"COVER_BANNER_BG_"+pad(i+1,2),settings.bannerColor,100,0);
             item.startColor.setValue(themeColorAt(theme,spans[i][2]));item.endColor.setValue(themeColorAt(theme,spans[i][3]));
         }
-        if(trim(settings.bannerText)){var textLayer=comp.layers.addText(settings.bannerText);textLayer.name=AUTO+"COVER_BANNER_TEXT";setTextLayer(textLayer,settings.bannerText,{font:settings.bannerFont,size:settings.bannerSize,color:settings.bannerTextColor});setLayerPosition(textLayer,[settings.width/2,y]);}
+        if(trim(settings.bannerText)){var textLayer=comp.layers.addText(settings.bannerText);textLayer.name=AUTO+"COVER_BANNER_TEXT";setTextLayer(textLayer,settings.bannerText,{font:settings.bannerFont,size:settings.bannerSize,color:settings.bannerTextColor});centerTextLayerAt(textLayer,[settings.width/2,y],0);}
     }
     function copyObject(source){var out={},k;for(k in source){if(source.hasOwnProperty(k)){out[k]=source[k];}}return out;}
     function createCoverComposition(folder,settings){if(!settings.coverEnabled){return null;}var cover=app.project.items.addComp(settings.compName+"_Cover",settings.width,settings.height,1,settings.coverDuration,settings.fps);cover.parentFolder=folder;createBackground(cover,folder,settings);var cs=copyObject(settings);cs.showNames=true;var positions=cs.layoutMode==="顶部拼贴"?calculateTopStripLayout(state.characters.length,cs.width,cs.portraitHeight):calculateLayout(state.characters.length,cs.layoutX,cs.layoutY,cs.charSize,cs.charGap,cs.maxLayoutWidth),names=[],allInterval=[[0,settings.coverDuration]],i;for(i=0;i<state.characters.length;i++){createCharacter(cover,folder,state.characters[i],positions[i],allInterval,cs,settings.coverDuration,i,names);}createCoverBanner(cover,cs);for(i=0;i<names.length;i++){names[i].moveToBeginning();}createTitleBlock(cover,folder,settings,null,"COVER");return cover;}
