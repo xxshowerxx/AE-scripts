@@ -2,16 +2,16 @@
 #targetengine "LyricsDistributionGenerator"
 
 /*
- * 多人歌词分配生成器 3.4.5
+ * 多人歌词分配生成器 3.4.11
  * Adobe After Effects 单文件脚本工具。
  * 无需外部程序库或第三方插件。
  */
 (function LyricsDistributionGenerator(thisObj) {
     var APP_NAME = "多人歌词分配生成器";
-    var VERSION = "3.4.5";
+    var VERSION = "3.4.11";
     var PRESET_SECTION = "LyricsDistributionGenerator.CharacterPresets";
     var CONFIG_SECTION = "LyricsDistributionGenerator.DefaultConfig";
-    var CONFIG_VERSION = "6";
+    var CONFIG_VERSION = "8";
     var fontCache = null;
     var AUTO = "AUTO_";
     var NONE_STYLE_LABEL = "[无]";
@@ -36,12 +36,23 @@
         ui: {}
     };
 
-    var CONFIG_TEXT_KEYS=["compName","width","height","fps","bgColor","portraitHeight","nameFont","nameSize","nameSecondSize","nameStrokeColor","nameStrokeWidth","nameShadowColor","nameShadowOpacity","nameShadowDirection","nameShadowDistance","nameShadowSoftness","layoutX","layoutY","charSize","charGap","maxLayoutWidth","inactiveOpacity","activeScale","transition","inactiveTintAmount","inactiveLightFactor","inactiveGrayAmount","bannerGlow","bannerGlowRadius","bannerBottomGlowRadius","bannerActiveGlow","bannerActiveGlowRadius","bannerHeight","bannerColor","bannerText","bannerFont","bannerSize","bannerTextColor","multiColorA","multiColorB","allColorA","allColorB","lyricX","maxLyricWidth","mainFont","mainSize","mainMinSize","mainY","mainColor","subFont","subSize","subMinSize","subY","subColor","lyricIn","lyricOut","lyricShadowColor","lyricShadowOpacity","lyricShadowDirection","lyricShadowDistance","lyricShadowSoftness","spectrumPath","spectrumCompName","spectrumAudioLayer","spectrumX","spectrumY","spectrumScale","spectrumWidth","spectrumStartFreq","spectrumEndFreq","spectrumBands","spectrumMaxHeight","spectrumDurationMs","spectrumThickness","spectrumSoftness","spectrumColor","spectrumMinimax","spectrumContrast","coverDuration","coverLogoPath","coverLogoWidth","songTitle","songTitleFont","songTitleSize","songTitleColor","songTitleGlow","songTitleGlowRadius","coverInfo","coverInfoFont","coverInfoSize","coverInfoColor","coverTitleY","coverInfoY"];
+    var CONFIG_TEXT_KEYS=["compName","width","height","fps","bgColor","portraitHeight","nameFont","nameSize","nameSecondSize","nameStrokeColor","nameStrokeWidth","nameShadowColor","nameShadowOpacity","nameShadowDirection","nameShadowDistance","nameShadowSoftness","layoutX","layoutY","charSize","charGap","maxLayoutWidth","inactiveOpacity","activeScale","transition","portraitSeam","inactiveTintAmount","activeTintAmount","inactiveDarkenAmount","inactiveLightFactor","inactiveGrayAmount","bannerGlow","bannerGlowRadius","bannerBottomGlowRadius","bannerActiveGlow","bannerActiveGlowRadius","bannerHeight","bannerColor","bannerText","bannerFont","bannerSize","bannerTextColor","multiColorA","multiColorB","allColorA","allColorB","lyricX","maxLyricWidth","mainFont","mainSize","mainMinSize","mainY","mainColor","subFont","subSize","subMinSize","subY","subColor","lyricIn","lyricOut","lyricShadowColor","lyricShadowOpacity","lyricShadowDirection","lyricShadowDistance","lyricShadowSoftness","spectrumPath","spectrumCompName","spectrumAudioLayer","spectrumX","spectrumY","spectrumScale","spectrumWidth","spectrumStartFreq","spectrumEndFreq","spectrumBands","spectrumMaxHeight","spectrumDurationMs","spectrumThickness","spectrumSoftness","spectrumColor","spectrumMinimax","spectrumContrast","coverDuration","coverLogoPath","coverLogoWidth","songTitle","songTitleFont","songTitleSize","songTitleColor","songTitleGlow","songTitleGlowRadius","coverInfo","coverInfoFont","coverInfoSize","coverInfoColor","coverTitleY","coverInfoY"];
     var CONFIG_CHECK_KEYS=["showNames","nameShadowEnabled","inactiveTint","bannerEnabled","lyricFollowSinger","lyricStroke","lyricShadowEnabled","spectrumEnabled","spectrumMirror","spectrumAfterIntro","coverEnabled","introEnabled"];
     var CONFIG_DROP_KEYS=["layoutMode","multiColorMode","allColorMode","lyricAnimation","spectrumMode","spectrumSide","coverTitleMode"];
 
     // ---------- 通用辅助函数 ----------
     function trim(s) { return String(s === undefined || s === null ? "" : s).replace(/^\s+|\s+$/g, ""); }
+    function fileWritePermissionEnabled() {
+        try {
+            return app.preferences.getPrefAsLong("Main Pref Section", "Pref_SCRIPTING_FILE_NETWORK_SECURITY") === 1;
+        } catch (e) {
+            // 部分 AE 版本无法读取此首选项；此时让实际写入操作决定结果。
+            return true;
+        }
+    }
+    function fileWritePermissionHelp() {
+        return "AE 当前禁止脚本写入文件。\r\r请打开“编辑 > 首选项 > 脚本和表达式”，勾选“允许脚本写入文件和访问网络”，然后重新导出。";
+    }
     function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
     function num(text, fallback, lo, hi) {
         var v = parseFloat(text);
@@ -188,7 +199,7 @@
     function configKeys(){return CONFIG_TEXT_KEYS.concat(CONFIG_CHECK_KEYS).concat(CONFIG_DROP_KEYS);}
     function snapshotUIConfig(){var u=state.ui,out={},i,k;for(i=0;i<CONFIG_TEXT_KEYS.length;i++){k=CONFIG_TEXT_KEYS[i];if(u[k]){out[k]=String(u[k].text);}}for(i=0;i<CONFIG_CHECK_KEYS.length;i++){k=CONFIG_CHECK_KEYS[i];if(u[k]){out[k]=u[k].value?"1":"0";}}for(i=0;i<CONFIG_DROP_KEYS.length;i++){k=CONFIG_DROP_KEYS[i];if(u[k]){out[k]=selectedText(u[k]);}}return out;}
     function applyUIConfig(cfg){var u=state.ui,i,k;for(i=0;i<CONFIG_TEXT_KEYS.length;i++){k=CONFIG_TEXT_KEYS[i];if(u[k]&&cfg[k]!==undefined){u[k].text=cfg[k];}}for(i=0;i<CONFIG_CHECK_KEYS.length;i++){k=CONFIG_CHECK_KEYS[i];if(u[k]&&cfg[k]!==undefined){u[k].value=cfg[k]==="1";}}for(i=0;i<CONFIG_DROP_KEYS.length;i++){k=CONFIG_DROP_KEYS[i];if(u[k]&&cfg[k]!==undefined){setDropSelection(u[k],cfg[k],0);}}}
-    function loadDefaultConfig(){var cfg={},keys=configKeys(),i,k,oldVersion;if(!app.settings.haveSetting(CONFIG_SECTION,"saved")||app.settings.getSetting(CONFIG_SECTION,"saved")!=="1"){return false;}try{oldVersion=app.settings.haveSetting(CONFIG_SECTION,"version")?app.settings.getSetting(CONFIG_SECTION,"version"):"0";for(i=0;i<keys.length;i++){k=keys[i];if(app.settings.haveSetting(CONFIG_SECTION,k)){cfg[k]=decodeURIComponent(app.settings.getSetting(CONFIG_SECTION,k));}}if(oldVersion!==CONFIG_VERSION){cfg.portraitHeight="540";cfg.inactiveLightFactor="58";cfg.inactiveGrayAmount="65";cfg.spectrumMode="内置频谱";cfg.spectrumEnabled="1";cfg.spectrumY="1050";cfg.spectrumMaxHeight="220";cfg.spectrumSide="仅向上";cfg.spectrumAfterIntro="1";cfg.spectrumColor="#000000";cfg.coverTitleMode="文字标题";cfg.coverTitleY="75%";}applyUIConfig(cfg);return true;}catch(e){alert("读取默认配置失败：\r"+e.toString(),APP_NAME);return false;}}
+    function loadDefaultConfig(){var cfg={},keys=configKeys(),i,k,oldVersion;if(!app.settings.haveSetting(CONFIG_SECTION,"saved")||app.settings.getSetting(CONFIG_SECTION,"saved")!=="1"){return false;}try{oldVersion=app.settings.haveSetting(CONFIG_SECTION,"version")?app.settings.getSetting(CONFIG_SECTION,"version"):"0";for(i=0;i<keys.length;i++){k=keys[i];if(app.settings.haveSetting(CONFIG_SECTION,k)){cfg[k]=decodeURIComponent(app.settings.getSetting(CONFIG_SECTION,k));}}if(oldVersion!==CONFIG_VERSION){cfg.portraitHeight="540";cfg.portraitSeam="28";cfg.inactiveTintAmount="14";cfg.activeTintAmount="24";cfg.inactiveDarkenAmount="90";cfg.inactiveLightFactor="58";cfg.inactiveGrayAmount="65";cfg.spectrumMode="内置频谱";cfg.spectrumEnabled="1";cfg.spectrumY="1050";cfg.spectrumMaxHeight="220";cfg.spectrumSide="仅向上";cfg.spectrumAfterIntro="1";cfg.spectrumColor="#000000";cfg.coverTitleMode="文字标题";cfg.coverTitleY="75%";}applyUIConfig(cfg);return true;}catch(e){alert("读取默认配置失败：\r"+e.toString(),APP_NAME);return false;}}
     function saveDefaultConfig(){var cfg=snapshotUIConfig(),keys=configKeys(),i,k;try{for(i=0;i<keys.length;i++){k=keys[i];if(cfg[k]!==undefined){app.settings.saveSetting(CONFIG_SECTION,k,encodeURIComponent(cfg[k]));}}app.settings.saveSetting(CONFIG_SECTION,"version",CONFIG_VERSION);app.settings.saveSetting(CONFIG_SECTION,"saved","1");alert("当前生成配置已保存为默认值。\r下次打开脚本时会自动载入。",APP_NAME);}catch(e){alert("保存默认配置失败：\r"+e.toString(),APP_NAME);}}
     function restoreFactoryConfig(){if(state.factoryConfig){applyUIConfig(state.factoryConfig);}try{app.settings.saveSetting(CONFIG_SECTION,"saved","0");}catch(e){}alert("已恢复出厂默认配置。",APP_NAME);}
     function addLabeledEdit(parent, label, value, chars) {
@@ -368,7 +379,7 @@
     function removeProjectCharacter(){var i=state.selectedCharacter;if(i<0||i>=state.characters.length){return;}state.characters.splice(i,1);refreshCharacterList(Math.min(i,state.characters.length-1));syncProjectRolesUI();}
     function saveCharacterPresets(){saveCharacterEditor();var map=loadPresetMap(),i,c,id,ids=[];for(i=0;i<state.characters.length;i++){c=state.characters[i];map[c.id]={displayName:c.displayName,secondaryName:c.secondaryName||"",color:c.color,scale:c.scale,offsetX:c.offsetX,offsetY:c.offsetY,imagePath:c.imageFile?c.imageFile.fsName:""};}for(id in map){if(map.hasOwnProperty(id)){ids.push(id);}}ids.sort();try{app.settings.saveSetting(PRESET_SECTION,"count",String(ids.length));for(i=0;i<ids.length;i++){id=ids[i];c=map[id];app.settings.saveSetting(PRESET_SECTION,"id_"+i,encodeURIComponent(id));app.settings.saveSetting(PRESET_SECTION,"data_"+i,encodeURIComponent(c.displayName)+"\t"+c.color+"\t"+c.scale+"\t"+c.offsetX+"\t"+c.offsetY+"\t"+encodeURIComponent(c.imagePath||"")+"\t"+encodeURIComponent(c.secondaryName||""));}state.presetMap=map;refreshPresetDrop();alert("已永久保存 "+state.characters.length+" 个角色样式到 AE 设置。",APP_NAME);}catch(e){alert("保存角色样式失败：\r"+e.toString(),APP_NAME);}}
     function applyAnnotationToProject(){try{var parsed=annotationToASS();state.ass=parsed;rebuildCharacters(parsed.actorIds);refreshStyleDrops();alert("标注已载入项目："+state.annotationCues.length+" 个时间段，"+parsed.actorIds.length+" 个角色。",APP_NAME);}catch(e){alert("应用标注失败：\r"+e.toString(),APP_NAME);}}
-    function exportAnnotationASS(){try{var parsed=annotationToASS(),f=File.saveDialog("保存标注后的 ASS","ASS:*.ass");if(!f){return;}if(!/\.ass$/i.test(f.name)){f=new File(f.fsName+".ass");}f.encoding="UTF-8";if(!f.open("w")){throw new Error("无法写入文件。");}f.write("\uFEFF"+assFromAnnotation(parsed));f.close();alert("ASS 已导出：\r"+f.fsName,APP_NAME);}catch(e){alert("导出失败：\r"+e.toString(),APP_NAME);}}
+    function exportAnnotationASS(){var parsed,f=null,opened=false;try{parsed=annotationToASS();if(!fileWritePermissionEnabled()){alert(fileWritePermissionHelp(),APP_NAME);return;}f=File.saveDialog("保存标注后的 ASS","ASS:*.ass");if(!f){return;}if(!/\.ass$/i.test(f.name)){f=new File(f.fsName+".ass");}f.encoding="UTF-8";opened=f.open("w");if(!opened){throw new Error("无法写入文件"+(f.error?"："+f.error:"。"));}if(!f.write("\uFEFF"+assFromAnnotation(parsed))){throw new Error("写入 ASS 内容失败"+(f.error?"："+f.error:"。"));}f.close();opened=false;alert("ASS 已导出：\r"+f.fsName,APP_NAME);}catch(e){if(opened&&f){try{f.close();}catch(closeError){}}if(!fileWritePermissionEnabled()){alert(fileWritePermissionHelp(),APP_NAME);}else{alert("导出失败：\r"+e.toString(),APP_NAME);}}}
     function saveCharacterEditor() {
         var idx = state.selectedCharacter, u = state.ui;
         if (idx < 0 || idx >= state.characters.length || !u.charName) { return; }
@@ -437,6 +448,7 @@
         doc.text = text;
         try { if (options.font) { doc.font = options.font; } } catch (fontError) {}
         doc.fontSize = options.size;
+        if(options.bold){try{doc.fauxBold=true;}catch(boldError){}}
         doc.applyFill = options.fill===false?false:true; doc.fillColor = options.color;
         doc.applyStroke = !!options.stroke;
         if (options.stroke) { doc.strokeColor = options.strokeColor || [0,0,0]; doc.strokeWidth = options.strokeWidth || 2; try{doc.strokeOverFill=false;}catch(strokeOrderError){} }
@@ -514,15 +526,39 @@
         if (!fx) { return null; }
         try { return fx.property("ADBE Glo2-0004") || fx.property(4); } catch (e) { return null; }
     }
-    function addInactiveTint(layer, color, amount) {
-        var fx = layer.property("ADBE Effect Parade").addProperty("ADBE Tint");
+    function addPortraitColorMask(layer, colorLeft, colorRight, amount, width, height) {
+        var fx = layer.property("ADBE Effect Parade").addProperty("ADBE Ramp");
         if (!fx) { return null; }
-        fx.name = AUTO + "Inactive_Tint";
-        var dark = [color[0]*0.06,color[1]*0.06,color[2]*0.06];
-        try { fx.property(1).setValue(dark); } catch (e1) {}
-        try { fx.property(2).setValue(color); } catch (e2) {}
-        try { fx.property(3).setValue(amount); } catch (e3) {}
+        fx.name = AUTO + "Portrait_Color_Mask";
+        colorLeft=[colorLeft[0],colorLeft[1],colorLeft[2],1];colorRight=[colorRight[0],colorRight[1],colorRight[2],1];
+        try { fx.property(1).setValue([0,height/2]); } catch (e1) {}
+        try { fx.property(2).setValue(colorLeft); } catch (e2) {}
+        try { fx.property(3).setValue([width,height/2]); } catch (e3) {}
+        try { fx.property(4).setValue(colorRight); } catch (e4) {}
+        try { fx.property(5).setValue(1); } catch (e5) {}
+        try { fx.property(6).setValue(0); } catch (e6) {}
+        try { fx.property(7).setValue(1-amount/100); } catch (e7) {}
         return fx;
+    }
+    function addInactiveTint(layer,color,amount) {
+        var fx=layer.property("ADBE Effect Parade").addProperty("ADBE Tint"),dark;
+        if(!fx){return null;}
+        fx.name=AUTO+"Inactive_Tint";dark=[color[0]*0.06,color[1]*0.06,color[2]*0.06];
+        try{fx.property(1).setValue(dark);}catch(e1){}
+        try{fx.property(2).setValue(color);}catch(e2){}
+        try{fx.property(3).setValue(amount);}catch(e3){}
+        return fx;
+    }
+    function addOrganicPortraitMask(layer,width,height,index,count,seam) {
+        if(count<=1||seam<=0){return null;}
+        var mask=layer.property("ADBE Mask Parade").addProperty("ADBE Mask Atom"),shape=new Shape(),wave=seam*0.55,phase=index%2===0?1:-1;
+        var left=index===0?-seam*2:seam,right=index===count-1?width+seam*2:width-seam;
+        shape.vertices=[[left,0],[right,0],[right+wave*phase,height*0.22],[right-wave*phase*0.7,height*0.48],[right+wave*phase*0.45,height*0.76],[right,height],[left,height],[left-wave*phase*0.5,height*0.74],[left+wave*phase*0.75,height*0.46],[left-wave*phase,height*0.2]];
+        shape.closed=true;mask.name=AUTO+"Organic_Seam";
+        mask.property("ADBE Mask Shape").setValue(shape);
+        try{mask.property("ADBE Mask Feather").setValue([seam*1.35,0]);}catch(featherError){}
+        try{mask.property("ADBE Mask Expansion").setValue(seam*0.18);}catch(expansionError){}
+        return mask;
     }
     function createEdgeGlow(comp, width, height, color, radius) {
         var layer=comp.layers.addShape();layer.name=AUTO+"Edge_Glow";
@@ -538,9 +574,13 @@
         var glow=addGlow(layer,color,0,radius);
         return {layer:layer,glow:glow};
     }
-    function tintAmountProperty(fx) {
+    function portraitMaskBlendProperty(fx) {
         if (!fx) { return null; }
-        try { return fx.property(3); } catch (e) { return null; }
+        try { return fx.property(7); } catch (e) { return null; }
+    }
+    function tintAmountProperty(fx) {
+        if(!fx){return null;}
+        try{return fx.property(3);}catch(e){return null;}
     }
     function singerColorForEvent(ev, fallbackColor) {
         var j,singer,i;
@@ -562,6 +602,15 @@
         if(ev&&ev.singers){for(i=0;i<ev.singers.length;i++){s=ev.singers[i];if(s.toUpperCase()==="NONE"){continue;}if(s.toUpperCase()==="ALL"){all=true;}else{uniquePush(ids,s);}}}
         return {ids:ids,all:all};
     }
+    function idsInCharacterOrder(ids) {
+        var ordered=[],i,j;
+        for(i=0;i<state.characters.length;i++){
+            for(j=0;j<ids.length;j++){
+                if(state.characters[i].id===ids[j]){ordered.push(ids[j]);break;}
+            }
+        }
+        return ordered;
+    }
     function colorsForMode(mode,ids,colorA,colorB,fallback) {
         var colors=[],i;
         if(mode==="固定颜色"){return [colorA];}
@@ -575,10 +624,19 @@
             for(i=0;i<state.characters.length;i++){ids.push(state.characters[i].id);}
             return {colors:colorsForMode(settings.allColorMode,ids,settings.allColorA,settings.allColorB,settings.bannerColor),kind:"all"};
         }
+        info.ids=idsInCharacterOrder(info.ids);
         if(info.ids.length===1){return {colors:[characterColor(info.ids[0],settings.bannerColor)],kind:"solo"};}
         if(info.ids.length>1){return {colors:colorsForMode(settings.multiColorMode,info.ids,settings.multiColorA,settings.multiColorB,settings.bannerColor),kind:"multi"};}
         for(i=0;i<state.characters.length;i++){ids.push(parseHexColor(state.characters[i].color,settings.bannerColor));}
         return {colors:ids.length?ids:[settings.bannerColor],kind:"none"};
+    }
+    function lyricThemeForEvent(ev,settings) {
+        var info=eventSingerInfo(ev),allEvent;
+        if(!info.all&&info.ids.length>=5){
+            allEvent={singers:["ALL"]};
+            return themeForEvent(allEvent,settings);
+        }
+        return themeForEvent(ev,settings);
     }
     function lerpColor(a,b,t){return[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];}
     function themeColorAt(theme,t) {
@@ -607,7 +665,9 @@
         setTemporalEase(prop);
     }
     function animateTintColors(fx,events,settings,duration,sampleT) {
-        if(!fx){return;}animateThemeColor(fx.property(1),events,settings,duration,sampleT,0.08,0.85);animateThemeColor(fx.property(2),events,settings,duration,sampleT,settings.inactiveLightFactor,settings.inactiveGrayAmount);
+        if(!fx){return;}
+        animateThemeColor(fx.property(1),events,settings,duration,sampleT,0.08,0.85);
+        animateThemeColor(fx.property(2),events,settings,duration,sampleT,settings.inactiveLightFactor,settings.inactiveGrayAmount);
     }
     function animateNameLayer(layer, intervals, transition, duration) {
         if(!layer){return;}
@@ -676,13 +736,13 @@
         }
         return positions;
     }
-    function animateCharacter(mainLayer, portraitLayer, glowFx, tintFx, intervals, cfg, duration) {
+    function animateCharacter(mainLayer, portraitLayer, glowFx, tintFx, colorMaskFx, intervals, cfg, duration) {
         var trans = cfg.transition, inactiveOpacity = cfg.inactiveOpacity, activeScale = cfg.activeScale;
         var op = mainLayer.property("ADBE Transform Group").property("ADBE Opacity");
         var sc = mainLayer.property("ADBE Transform Group").property("ADBE Scale");
-        var gp = glowIntensityProperty(glowFx), tp = tintAmountProperty(tintFx), baseScale = cfg.baseScale;
-        op.setValue(inactiveOpacity); sc.setValue([baseScale,baseScale]); if (gp) { gp.setValue(0); } if(tp){tp.setValue(cfg.inactiveTintAmount);}
-        setKey(op, 0, inactiveOpacity); setKey(sc, 0, [baseScale,baseScale]); if (gp) { setKey(gp,0,0); } if(tp){setKey(tp,0,cfg.inactiveTintAmount);}
+        var gp = glowIntensityProperty(glowFx), tp=tintAmountProperty(tintFx), mp = portraitMaskBlendProperty(colorMaskFx), baseScale = cfg.baseScale, inactiveBlend=1-cfg.inactiveMaskOpacity/100, activeBlend=1-cfg.activeMaskOpacity/100;
+        op.setValue(inactiveOpacity); sc.setValue([baseScale,baseScale]); if(gp){gp.setValue(0);}if(tp){tp.setValue(cfg.inactiveDarkenAmount);}if(mp){mp.setValue(inactiveBlend);}
+        setKey(op,0,inactiveOpacity);setKey(sc,0,[baseScale,baseScale]);if(gp){setKey(gp,0,0);}if(tp){setKey(tp,0,cfg.inactiveDarkenAmount);}if(mp){setKey(mp,0,inactiveBlend);}
         var i, a, b, pre, post;
         for (i = 0; i < intervals.length; i++) {
             a = clamp(intervals[i][0],0,duration); b = clamp(intervals[i][1],0,duration);
@@ -691,10 +751,11 @@
             setKey(sc,pre,[baseScale,baseScale]); setKey(sc,a,[baseScale*activeScale/100,baseScale*activeScale/100]);
             setKey(sc,b,[baseScale*activeScale/100,baseScale*activeScale/100]); setKey(sc,post,[baseScale,baseScale]);
             if (gp) { setKey(gp,pre,0); setKey(gp,a,cfg.glowIntensity); setKey(gp,b,cfg.glowIntensity); setKey(gp,post,0); }
-            if (tp) { setKey(tp,pre,cfg.inactiveTintAmount); setKey(tp,a,0); setKey(tp,b,0); setKey(tp,post,cfg.inactiveTintAmount); }
+            if (tp) { setKey(tp,pre,cfg.inactiveDarkenAmount); setKey(tp,a,0); setKey(tp,b,0); setKey(tp,post,cfg.inactiveDarkenAmount); }
+            if (mp) { setKey(mp,pre,inactiveBlend); setKey(mp,a,activeBlend); setKey(mp,b,activeBlend); setKey(mp,post,inactiveBlend); }
         }
-        setKey(op,duration,inactiveOpacity); setKey(sc,duration,[baseScale,baseScale]); if (gp) { setKey(gp,duration,0); } if(tp){setKey(tp,duration,cfg.inactiveTintAmount);}
-        setTemporalEase(op); setTemporalEase(sc); if (gp) { setTemporalEase(gp); } if(tp){setTemporalEase(tp);}
+        setKey(op,duration,inactiveOpacity);setKey(sc,duration,[baseScale,baseScale]);if(gp){setKey(gp,duration,0);}if(tp){setKey(tp,duration,cfg.inactiveDarkenAmount);}if(mp){setKey(mp,duration,inactiveBlend);}
+        setTemporalEase(op);setTemporalEase(sc);if(gp){setTemporalEase(gp);}if(tp){setTemporalEase(tp);}if(mp){setTemporalEase(mp);}
     }
 
     // ---------- 设置与检查 ----------
@@ -714,7 +775,7 @@
             charSize:num(u.charSize.text,260,20,4000), charGap:num(u.charGap.text,40,-1000,4000), maxLayoutWidth:num(u.maxLayoutWidth.text,1700,100,30000),
             inactiveOpacity:num(u.inactiveOpacity.text,100,0,100), activeScale:num(u.activeScale.text,100,1,300),
             glowEnabled:false, glowIntensity:0, glowRadius:0,
-            inactiveTint:u.inactiveTint.value, inactiveTintAmount:num(u.inactiveTintAmount.text,90,0,100), inactiveLightFactor:num(u.inactiveLightFactor.text,58,5,100)/100, inactiveGrayAmount:num(u.inactiveGrayAmount.text,65,0,100)/100, bannerShadowOpacity:num(u.bannerGlow.text,82,0,100), bannerShadowSize:num(u.bannerGlowRadius.text,100,0,500), bannerBottomShadowSize:num(u.bannerBottomGlowRadius.text,65,0,500), bannerActiveShadowOpacity:num(u.bannerActiveGlow.text,88,0,100), bannerActiveShadowSize:num(u.bannerActiveGlowRadius.text,190,0,1000),
+            inactiveTint:u.inactiveTint.value, portraitSeam:num(u.portraitSeam.text,28,0,300), inactiveTintAmount:num(u.inactiveTintAmount.text,14,0,100), activeTintAmount:num(u.activeTintAmount.text,24,0,100), inactiveDarkenAmount:num(u.inactiveDarkenAmount.text,90,0,100), inactiveLightFactor:num(u.inactiveLightFactor.text,58,5,100)/100, inactiveGrayAmount:num(u.inactiveGrayAmount.text,65,0,100)/100, bannerShadowOpacity:num(u.bannerGlow.text,82,0,100), bannerShadowSize:num(u.bannerGlowRadius.text,100,0,500), bannerBottomShadowSize:num(u.bannerBottomGlowRadius.text,65,0,500), bannerActiveShadowOpacity:num(u.bannerActiveGlow.text,88,0,100), bannerActiveShadowSize:num(u.bannerActiveGlowRadius.text,190,0,1000),
             transition:num(u.transition.text,0.12,0,10),
             mainStyle:selectedText(u.mainStyle), subStyle:selectedText(u.subStyle),
             mainFont:trim(u.mainFont.text), mainSize:num(u.mainSize.text,58,1,1000), mainMinSize:num(u.mainMinSize.text,28,1,1000), mainColor:parseHexColor(u.mainColor.text,[1,1,1]), mainY:num(u.mainY.text,820,-30000,30000),
@@ -761,10 +822,11 @@
         if (!fileExists(state.audioFile)) { return null; }
         var item=importFootage(state.audioFile,folder), layer=comp.layers.add(item); layer.name=AUTO+"AUDIO"; return layer;
     }
-    function addAnimatedNamePair(comp,text,suffix,pos,font,size,color,settings,intervals,duration,nameLayers){var outline=comp.layers.addText(text),fill;outline.name=AUTO+"NAME_OUTLINE_"+suffix;setTextLayer(outline,text,{font:font,size:size,color:color,fill:false,stroke:true,strokeColor:settings.nameStrokeColor,strokeWidth:settings.nameStrokeWidth});addUnifiedDropShadow(outline,"Name Shadow",settings.nameShadowColor,settings.nameShadowEnabled?settings.nameShadowOpacity:0,settings.nameShadowDirection,settings.nameShadowDistance,settings.nameShadowSoftness,"Name");setLayerPosition(outline,pos);animateNameLayer(outline,intervals,settings.transition,duration);nameLayers.push(outline);fill=comp.layers.addText(text);fill.name=AUTO+"NAME_COLOR_"+suffix;setTextLayer(fill,text,{font:font,size:size,color:color,stroke:false});setLayerPosition(fill,pos);animateNameLayer(fill,intervals,settings.transition,duration);nameLayers.push(fill);}
+    function addAnimatedNamePair(comp,text,suffix,pos,font,size,color,settings,intervals,duration,nameLayers){var outline=comp.layers.addText(text),fill;outline.name=AUTO+"NAME_OUTLINE_"+suffix;setTextLayer(outline,text,{font:font,size:size,color:color,fill:false,stroke:true,strokeColor:settings.nameStrokeColor,strokeWidth:settings.nameStrokeWidth,bold:true});addUnifiedDropShadow(outline,"Name Shadow",settings.nameShadowColor,settings.nameShadowEnabled?settings.nameShadowOpacity:0,settings.nameShadowDirection,settings.nameShadowDistance,settings.nameShadowSoftness,"Name");setLayerPosition(outline,pos);animateNameLayer(outline,intervals,settings.transition,duration);nameLayers.push(outline);fill=comp.layers.addText(text);fill.name=AUTO+"NAME_COLOR_"+suffix;setTextLayer(fill,text,{font:font,size:size,color:color,stroke:false,bold:true});setLayerPosition(fill,pos);animateNameLayer(fill,intervals,settings.transition,duration);nameLayers.push(fill);}
     function createCharacter(comp, folder, character, pos, intervals, settings, duration, index, nameLayers) {
         var isStrip=settings.layoutMode==="顶部拼贴";
-        var preW=isStrip?Math.max(16,Math.round(pos.cellW)):Math.max(64,Math.round(settings.charSize));
+        var seam=isStrip?settings.portraitSeam:0;
+        var preW=isStrip?Math.max(16,Math.round(pos.cellW+seam*2)):Math.max(64,Math.round(settings.charSize));
         var preH=isStrip?Math.max(16,Math.round(pos.cellH)):Math.max(96,Math.round(settings.charSize*1.22));
         var pre=app.project.items.addComp(AUTO+"CHAR_"+safeName(character.id),preW,preH,1,duration,settings.fps); pre.parentFolder=folder;
         var item=importFootage(character.imageFile,folder), portrait=pre.layers.add(item); portrait.name=AUTO+"Portrait";
@@ -773,11 +835,15 @@
         var portraitScale=portrait.property("ADBE Transform Group").property("ADBE Scale").value;
         portrait.property("ADBE Transform Group").property("ADBE Scale").setValue([portraitScale[0]*character.scale/100,portraitScale[1]*character.scale/100]);
         var color=parseHexColor(character.color,parseHexColor(defaultCharacter(character.id,index).color,[1,1,1]));
-        var tint=settings.inactiveTint?addInactiveTint(portrait,color,settings.inactiveTintAmount):null;
+        var leftColor=index>0?lerpColor(parseHexColor(state.characters[index-1].color,color),color,0.5):color;
+        var rightColor=index<state.characters.length-1?lerpColor(color,parseHexColor(state.characters[index+1].color,color),0.5):color;
+        var tint=settings.inactiveTint?addInactiveTint(portrait,color,settings.inactiveDarkenAmount):null,colorMask=null;
         var glow=null;
         var namePos=null,localNameY,secondaryY,mainX=pos.x+(isStrip?0:character.offsetX),mainY=pos.y+(isStrip?0:character.offsetY),hasSecondary=!!trim(character.secondaryName);
         var main=comp.layers.add(pre); main.name=AUTO+"CHAR_"+safeName(character.id);
         setLayerPosition(main,[mainX,mainY]);
+        if(settings.inactiveTint){colorMask=addPortraitColorMask(main,leftColor,rightColor,settings.inactiveTintAmount,preW,preH);}
+        if(isStrip){addOrganicPortraitMask(main,preW,preH,index,state.characters.length,seam);}
         var baseScale=pos.layoutScale*100;
         if(settings.showNames){
             localNameY=isStrip?preH-(hasSecondary?Math.max(78,settings.nameSecondSize+settings.nameSize*0.72):Math.max(55,settings.nameSize*1.15)):settings.charSize+Math.max(18,settings.nameSize*0.65);namePos=[mainX,mainY+(localNameY-preH/2)*pos.layoutScale];
@@ -785,7 +851,7 @@
             if(hasSecondary){secondaryY=localNameY+settings.nameSize*0.72;namePos=[mainX,mainY+(secondaryY-preH/2)*pos.layoutScale];addAnimatedNamePair(comp,character.secondaryName,safeName(character.id)+"_SECOND",namePos,settings.nameFont,settings.nameSecondSize*pos.layoutScale,color,settings,intervals,duration,nameLayers);}
         }
         animateTintColors(tint,state.ass.events,settings,duration,state.characters.length<=1?0:index/(state.characters.length-1));
-        animateCharacter(main,portrait,glow,tint,intervals,{transition:settings.transition,inactiveOpacity:settings.inactiveOpacity,activeScale:settings.activeScale,baseScale:baseScale,glowIntensity:settings.glowIntensity,inactiveTintAmount:settings.inactiveTintAmount},duration);
+        animateCharacter(main,portrait,glow,tint,colorMask,intervals,{transition:settings.transition,inactiveOpacity:settings.inactiveOpacity,activeScale:settings.activeScale,baseScale:baseScale,glowIntensity:settings.glowIntensity,inactiveDarkenAmount:settings.inactiveDarkenAmount,inactiveMaskOpacity:settings.inactiveTintAmount,activeMaskOpacity:settings.activeTintAmount},duration);
         return main;
     }
     function lyricColorForEvent(ev, settings, fixedColor) {
@@ -815,10 +881,43 @@
         try{fx.property(1).expression='var r=thisLayer.sourceRectAtTime(time,false);thisLayer.toComp([r.left+r.width/2,r.top]);';fx.property(3).expression='var r=thisLayer.sourceRectAtTime(time,false);thisLayer.toComp([r.left+r.width/2,r.top+Math.max(1,r.height)]);';}catch(e8){}
         return fx;
     }
+    function collectGradientPointAndColorProperties(group,points,colors) {
+        var i,p,type;
+        for(i=1;i<=group.numProperties;i++){
+            p=group.property(i);
+            if(p.numProperties&&p.numProperties>0){collectGradientPointAndColorProperties(p,points,colors);continue;}
+            try{type=p.propertyValueType;}catch(typeError){continue;}
+            if(type===PropertyValueType.COLOR){colors.push(p);}
+            else if(type===PropertyValueType.TwoD||type===PropertyValueType.TwoD_SPATIAL){points.push(p);}
+        }
+    }
+    function addMultiColorLyricGradient(layer,theme,time) {
+        if(theme.colors.length<3){return addVerticalGradientRamp(layer,themeColorAt(theme,0),themeColorAt(theme,1),time);}
+        var fx=null,rect,anchor=[0,0],position=[0,0],scale=[100,100],centerX,topY,bottomY,spread,pointProps=[],colorProps=[],pointValues=[],colorValues=[],expressions=[],i,t,c;
+        try{fx=layer.property("ADBE Effect Parade").addProperty("ADBE 4ColorGradient");}catch(addError){fx=null;}
+        if(!fx){return addVerticalGradientRamp(layer,themeColorAt(theme,0),themeColorAt(theme,1),time);}
+        collectGradientPointAndColorProperties(fx,pointProps,colorProps);
+        if(pointProps.length<4||colorProps.length<4){try{fx.remove();}catch(removeError){}return addVerticalGradientRamp(layer,themeColorAt(theme,0),themeColorAt(theme,1),time);}
+        try{rect=layer.sourceRectAtTime(time,false);}catch(e){rect={left:-500,top:-50,width:1000,height:100};}
+        try{anchor=layer.property("ADBE Transform Group").property("ADBE Anchor Point").value;}catch(e0){}
+        try{position=layer.property("ADBE Transform Group").property("ADBE Position").value;}catch(e01){}
+        try{scale=layer.property("ADBE Transform Group").property("ADBE Scale").value;}catch(e02){}
+        centerX=position[0]+(rect.left+rect.width/2-anchor[0])*scale[0]/100;topY=position[1]+(rect.top-anchor[1])*scale[1]/100;bottomY=position[1]+(rect.top+Math.max(1,rect.height)-anchor[1])*scale[1]/100;spread=Math.max(2,Math.abs(rect.width*scale[0]/100)*0.04);
+        pointValues=[[centerX-spread,topY],[centerX+spread,topY+(bottomY-topY)/3],[centerX-spread,topY+(bottomY-topY)*2/3],[centerX+spread,bottomY]];
+        expressions=['var r=thisLayer.sourceRectAtTime(time,false);thisLayer.toComp([r.left+r.width*0.46,r.top]);','var r=thisLayer.sourceRectAtTime(time,false);thisLayer.toComp([r.left+r.width*0.54,r.top+r.height/3]);','var r=thisLayer.sourceRectAtTime(time,false);thisLayer.toComp([r.left+r.width*0.46,r.top+r.height*2/3]);','var r=thisLayer.sourceRectAtTime(time,false);thisLayer.toComp([r.left+r.width*0.54,r.top+Math.max(1,r.height)]);'];
+        fx.name=AUTO+"Lyric_Multi_Color_Gradient";
+        for(i=0;i<4;i++){
+            t=i/3;c=theme.colors.length===3?(i===0?theme.colors[0]:(i===3?theme.colors[2]:theme.colors[1])):themeColorAt(theme,t);colorValues[i]=[c[0],c[1],c[2],1];
+            try{pointProps[i].setValue(pointValues[i]);}catch(pointError){}
+            try{colorProps[i].setValue(colorValues[i]);}catch(colorError){}
+            try{if(pointProps[i].canSetExpression){pointProps[i].expression=expressions[i];}}catch(expressionError){}
+        }
+        return fx;
+    }
     function validTaggedActor(actor){var parts=splitSingers(actor),i,j,found;if(!parts.length){return false;}for(i=0;i<parts.length;i++){if(parts[i].toUpperCase()==="ALL"||parts[i].toUpperCase()==="NONE"){continue;}found=false;for(j=0;j<state.characters.length;j++){if(state.characters[j].id===parts[i]){found=true;break;}}if(!found){return false;}}return true;}
     function parseLyricSegments(text,defaultActor){var source=String(text),re=/\[([^\]]+)\]/g,m,cursor=0,current=defaultActor||"NONE",segments=[],display="",found=false,piece;function append(value,actor){if(!value){return;}segments.push({text:value,actor:actor});display+=value;}while((m=re.exec(source))!==null){if(!validTaggedActor(trim(m[1]))){continue;}piece=source.substring(cursor,m.index);append(piece,current);current=trim(m[1]);cursor=re.lastIndex;found=true;}if(!found){return{hasTags:false,text:source,segments:[{text:source,actor:current}]};}append(source.substring(cursor),current);return{hasTags:true,text:display,segments:segments};}
     function taggedActorsFromText(text){var parsed=parseLyricSegments(text,"NONE"),out=[],i,j,parts,p;if(!parsed.hasTags){return "";}for(i=0;i<parsed.segments.length;i++){parts=splitSingers(parsed.segments[i].actor);for(j=0;j<parts.length;j++){p=parts[j];if(p.toUpperCase()==="ALL"){return "ALL";}if(p.toUpperCase()!=="NONE"){uniquePush(out,p);}}}return out.length?out.join("+"):"NONE";}
-    function colorsForTaggedActor(actor,fixed){var parts=splitSingers(actor),ids=[],colors=[],i,p;if(parts.length===1&&parts[0].toUpperCase()==="ALL"){for(i=0;i<state.characters.length;i++){ids.push(state.characters[i].id);}}else{for(i=0;i<parts.length;i++){p=parts[i];if(p.toUpperCase()!=="NONE"){ids.push(p);}}}for(i=0;i<ids.length;i++){colors.push(characterColor(ids[i],fixed));}return colors.length?colors:[fixed];}
+    function colorsForTaggedActor(actor,fixed){var parts=splitSingers(actor),ids=[],colors=[],i,p;if(parts.length===1&&parts[0].toUpperCase()==="ALL"){for(i=0;i<state.characters.length;i++){ids.push(state.characters[i].id);}}else{for(i=0;i<parts.length;i++){p=parts[i];if(p.toUpperCase()!=="NONE"){ids.push(p);}}ids=idsInCharacterOrder(ids);if(ids.length>=5){ids=[];for(i=0;i<state.characters.length;i++){ids.push(state.characters[i].id);}}}for(i=0;i<ids.length;i++){colors.push(characterColor(ids[i],fixed));}return colors.length?colors:[fixed];}
     function solidRunsForTaggedSegments(parsed,fixed,followSinger){var out=[],i,j,seg,colors,count,start,end;if(!followSinger){return[{text:parsed.text,color:fixed}];}for(i=0;i<parsed.segments.length;i++){seg=parsed.segments[i];colors=colorsForTaggedActor(seg.actor,fixed);if(colors.length===1){out.push({text:seg.text,color:colors[0]});continue;}count=seg.text.length;start=0;for(j=0;j<colors.length;j++){end=j===colors.length-1?count:Math.round(count*(j+1)/colors.length);if(end>start){out.push({text:seg.text.substring(start,end),color:colors[j]});}start=end;}}return out;}
     function createSegmentedLyric(comp,ev,kind,settings,font,size,minSize,fixed,y,count,parsed){var runs=solidRunsForTaggedSegments(parsed,fixed,settings.lyricFollowSinger),layers=[],props=[],widths=[],i,layer,prop,rect,total=0,targetSize=size,fitRatio,left,offset;for(i=0;i<runs.length;i++){layer=comp.layers.addText(runs[i].text);layer.name=AUTO+"LYRIC_"+kind+"_"+pad(count,4)+"_PART_"+pad(i+1,2);layer.inPoint=ev.start;layer.outPoint=Math.min(comp.duration,ev.end);prop=setTextLayer(layer,runs[i].text,{font:font,size:size,color:runs[i].color,stroke:settings.lyricStroke,strokeColor:[0,0,0],strokeWidth:2});addUnifiedDropShadow(layer,"Lyric Shadow",settings.lyricShadowColor,settings.lyricShadowEnabled?settings.lyricShadowOpacity:0,settings.lyricShadowDirection,settings.lyricShadowDistance,settings.lyricShadowSoftness,"Lyric");try{rect=layer.sourceRectAtTime(ev.start,false);widths[i]=Math.max(1,rect.width);}catch(e){widths[i]=runs[i].text.length*size;}total+=widths[i];layers.push(layer);props.push(prop);}if(total>settings.maxLyricWidth){targetSize=Math.max(minSize,size*settings.maxLyricWidth/total*0.98);total=0;for(i=0;i<layers.length;i++){var doc=props[i].value;doc.fontSize=targetSize;props[i].setValue(doc);try{rect=layers[i].sourceRectAtTime(ev.start,false);widths[i]=Math.max(1,rect.width);}catch(e2){widths[i]=runs[i].text.length*targetSize;}total+=widths[i];}}fitRatio=targetSize/size;left=-total/2;for(i=0;i<layers.length;i++){offset=left+widths[i]/2;setLayerPosition(layers[i],[settings.lyricX+offset,y]);addFadeScaleAnimation(layers[i],ev.start,Math.min(comp.duration,ev.end),settings.lyricAnimation,settings.lyricIn,settings.lyricOut);attachLyricMasterControls(layers[i],props[i],kind,fitRatio,offset,size);left+=widths[i];}}
     function buildLyricDisplayEvents(events,style){var out=[],groups={},order=[],i,e,g,j,entry,parts,parsed,segments,text,actors,p;for(i=0;i<events.length;i++){e=events[i];if(e.style!==style||!trim(e.text)){continue;}g=trim(e.group||"");if(!g){out.push(e);continue;}if(!groups[g]){groups[g]={parts:[],start:e.start,end:e.end};order.push(g);}groups[g].parts.push(e);groups[g].start=Math.min(groups[g].start,e.start);groups[g].end=Math.max(groups[g].end,e.end);}for(i=0;i<order.length;i++){entry=groups[order[i]];parts=entry.parts;parts.sort(function(a,b){return a.start-b.start||a.line-b.line;});segments=[];text="";actors=[];for(j=0;j<parts.length;j++){e=parts[j];parsed=parseLyricSegments(e.text,e.actor);if(parsed.hasTags){for(var k=0;k<parsed.segments.length;k++){segments.push(parsed.segments[k]);text+=parsed.segments[k].text;}}else{segments.push({text:e.text,actor:e.actor});text+=e.text;}for(var m=0;m<e.singers.length;m++){p=e.singers[m];if(p.toUpperCase()==="ALL"){actors=["ALL"];break;}if(p.toUpperCase()!=="NONE"&&actors.length&&actors[0]!=="ALL"){uniquePush(actors,p);}else if(p.toUpperCase()!=="NONE"&&!actors.length){actors.push(p);}}}out.push({start:entry.start,end:entry.end,style:style,actor:actors.length?actors.join("+"):"NONE",singers:actors.length?actors:["NONE"],text:text,group:order[i],line:parts[0].line,_lyricSegments:{hasTags:true,text:text,segments:segments}});}out.sort(function(a,b){return a.start-b.start||a.line-b.line;});return out;}
@@ -832,13 +931,13 @@
             segments=ev._lyricSegments||parseLyricSegments(ev.text,ev.actor);if(segments.hasTags){createSegmentedLyric(comp,ev,kind,settings,font,size,minSize,fixed,y,count,segments);continue;}
             layer=comp.layers.addText(ev.text); layer.name=AUTO+"LYRIC_"+kind+"_"+pad(count,4);
             layer.inPoint=ev.start; layer.outPoint=Math.min(comp.duration,ev.end);
-            theme=settings.lyricFollowSinger?themeForEvent(ev,settings):{colors:[fixed],kind:"fixed"};
+            theme=settings.lyricFollowSinger?lyricThemeForEvent(ev,settings):{colors:[fixed],kind:"fixed"};
             if(theme.kind==="none"){theme={colors:[fixed],kind:"fixed"};}
             color=themeColorAt(theme,0);
             textProp=setTextLayer(layer,ev.text,{font:font,size:size,color:color,stroke:settings.lyricStroke,strokeColor:[0,0,0],strokeWidth:2});
             setLayerPosition(layer,[settings.lyricX,y]); autoFitText(layer,textProp,settings.maxLyricWidth,minSize);
             fitRatio=textProp.value.fontSize/size;
-            if(theme.colors.length>1){addVerticalGradientRamp(layer,themeColorAt(theme,0),themeColorAt(theme,1),ev.start);}
+            if(theme.colors.length>1){addMultiColorLyricGradient(layer,theme,ev.start);}
             addUnifiedDropShadow(layer,"Lyric Shadow",settings.lyricShadowColor,settings.lyricShadowEnabled?settings.lyricShadowOpacity:0,settings.lyricShadowDirection,settings.lyricShadowDistance,settings.lyricShadowSoftness,"Lyric");
             addFadeScaleAnimation(layer,ev.start,Math.min(comp.duration,ev.end),settings.lyricAnimation,settings.lyricIn,settings.lyricOut);
             attachLyricMasterControls(layer,textProp,kind,fitRatio);
@@ -1007,7 +1106,9 @@
         var nameShadowG=layoutP.add("group");u.nameShadowEnabled=nameShadowG.add("checkbox",undefined,"角色名阴影");u.nameShadowEnabled.value=true;nameShadowG.add("statictext",undefined,"颜色");u.nameShadowColor=nameShadowG.add("edittext",undefined,"#000000");u.nameShadowColor.characters=8;var nameShadowPick=nameShadowG.add("button",undefined,"选色");nameShadowPick.onClick=function(){chooseColor(u.nameShadowColor);};nameShadowG.add("statictext",undefined,"透明度");u.nameShadowOpacity=nameShadowG.add("edittext",undefined,"55");u.nameShadowOpacity.characters=4;nameShadowG.add("statictext",undefined,"方向");u.nameShadowDirection=nameShadowG.add("edittext",undefined,"135");u.nameShadowDirection.characters=4;nameShadowG.add("statictext",undefined,"距离");u.nameShadowDistance=nameShadowG.add("edittext",undefined,"5");u.nameShadowDistance.characters=4;nameShadowG.add("statictext",undefined,"柔和度");u.nameShadowSoftness=nameShadowG.add("edittext",undefined,"14");u.nameShadowSoftness.characters=4;
         var lg1=layoutP.add("group");lg1.add("statictext",undefined,"中心 X");u.layoutX=lg1.add("edittext",undefined,"960");u.layoutX.characters=6;lg1.add("statictext",undefined,"Y");u.layoutY=lg1.add("edittext",undefined,"560");u.layoutY.characters=6;lg1.add("statictext",undefined,"角色尺寸");u.charSize=lg1.add("edittext",undefined,"260");u.charSize.characters=6;lg1.add("statictext",undefined,"间距");u.charGap=lg1.add("edittext",undefined,"40");u.charGap.characters=5;
         var lg2=layoutP.add("group");lg2.add("statictext",undefined,"最大总宽");u.maxLayoutWidth=lg2.add("edittext",undefined,"1700");u.maxLayoutWidth.characters=6;lg2.add("statictext",undefined,"未唱透明度");u.inactiveOpacity=lg2.add("edittext",undefined,"100");u.inactiveOpacity.characters=5;lg2.add("statictext",undefined,"演唱缩放 %");u.activeScale=lg2.add("edittext",undefined,"100");u.activeScale.characters=5;lg2.add("statictext",undefined,"切换秒");u.transition=lg2.add("edittext",undefined,"0.12");u.transition.characters=5;
-        var tintG=layoutP.add("group");u.inactiveTint=tintG.add("checkbox",undefined,"未唱角色跟随当前演唱者色");u.inactiveTint.value=true;tintG.add("statictext",undefined,"暗化强度 %");u.inactiveTintAmount=tintG.add("edittext",undefined,"90");u.inactiveTintAmount.characters=5;tintG.add("statictext",undefined,"亮部亮度 %");u.inactiveLightFactor=tintG.add("edittext",undefined,"58");u.inactiveLightFactor.characters=5;tintG.add("statictext",undefined,"灰化 %");u.inactiveGrayAmount=tintG.add("edittext",undefined,"65");u.inactiveGrayAmount.characters=5;
+        var edgeG=layoutP.add("group");edgeG.add("statictext",undefined,"人物边缘融合 px");u.portraitSeam=edgeG.add("edittext",undefined,"28");u.portraitSeam.characters=5;edgeG.add("statictext",undefined,"顶部拼贴使用重叠、水平羽化和轻微不规则轮廓");
+        var tintG=layoutP.add("group");u.inactiveTint=tintG.add("checkbox",undefined,"角色图颜色蒙版与未唱暗化");u.inactiveTint.value=true;tintG.add("statictext",undefined,"蒙版未唱 %");u.inactiveTintAmount=tintG.add("edittext",undefined,"14");u.inactiveTintAmount.characters=5;tintG.add("statictext",undefined,"演唱 %");u.activeTintAmount=tintG.add("edittext",undefined,"24");u.activeTintAmount.characters=5;
+        var darkG=layoutP.add("group");darkG.add("statictext",undefined,"未唱暗化 %");u.inactiveDarkenAmount=darkG.add("edittext",undefined,"90");u.inactiveDarkenAmount.characters=5;darkG.add("statictext",undefined,"亮部亮度 %");u.inactiveLightFactor=darkG.add("edittext",undefined,"58");u.inactiveLightFactor.characters=5;darkG.add("statictext",undefined,"灰化 %");u.inactiveGrayAmount=darkG.add("edittext",undefined,"65");u.inactiveGrayAmount.characters=5;
         var shadowG=layoutP.add("group");shadowG.add("statictext",undefined,"常态阴影 %");u.bannerGlow=shadowG.add("edittext",undefined,"82");u.bannerGlow.characters=4;shadowG.add("statictext",undefined,"上方范围");u.bannerGlowRadius=shadowG.add("edittext",undefined,"100");u.bannerGlowRadius.characters=4;shadowG.add("statictext",undefined,"下方范围");u.bannerBottomGlowRadius=shadowG.add("edittext",undefined,"65");u.bannerBottomGlowRadius.characters=4;
         var activeShadowG=layoutP.add("group");activeShadowG.add("statictext",undefined,"当前演唱者上阴影 %");u.bannerActiveGlow=activeShadowG.add("edittext",undefined,"88");u.bannerActiveGlow.characters=4;activeShadowG.add("statictext",undefined,"上方范围");u.bannerActiveGlowRadius=activeShadowG.add("edittext",undefined,"190");u.bannerActiveGlowRadius.characters=4;activeShadowG.add("statictext",undefined,"只影响当前演唱角色，下方不放大");
         var bannerG1=layoutP.add("group");u.bannerEnabled=bannerG1.add("checkbox",undefined,"标题色带");u.bannerEnabled.value=true;bannerG1.add("statictext",undefined,"文字上下留白");u.bannerHeight=bannerG1.add("edittext",undefined,"10");u.bannerHeight.characters=5;bannerG1.add("statictext",undefined,"底色");u.bannerColor=bannerG1.add("edittext",undefined,"#F6BBD5");u.bannerColor.characters=8;var bannerPick=bannerG1.add("button",undefined,"选色");bannerPick.onClick=function(){chooseColor(u.bannerColor);};
